@@ -32,7 +32,7 @@ from core.renderer import render_musicxml_to_image
 from core.comparator import compare_musicxml_semantic, compare_images
 from core.extractor import extract_from_image
 from core.musicxml_builder import build_musicxml
-from core.fixer import fix_musicxml
+from core.fixer import fix_musicxml, reextract_with_context
 
 console = Console()
 
@@ -50,6 +50,8 @@ def iterate_fixture(
     max_iterations: int = 5,
     threshold: float = 95.0,
     model: str = "claude-sonnet-4-5-20250929",
+    two_pass: bool = True,
+    use_thinking: bool = True,
 ) -> dict:
     """Run the extraction-comparison-fix loop on a single fixture.
 
@@ -91,22 +93,51 @@ def iterate_fixture(
         try:
             if iteration == 1 or current_xml_content is None:
                 # First iteration: extract from scratch
-                console.print(f"  Extracting from image with Claude Vision...")
-                score = extract_from_image(gt_png, model=model)
+                console.print(f"  Extracting from image with Claude Vision (two_pass={two_pass}, thinking={use_thinking})...")
+                score = extract_from_image(gt_png, model=model, two_pass=two_pass, use_thinking=use_thinking)
                 current_xml_content = build_musicxml(score)
             else:
-                # Subsequent iterations: apply fixes based on previous comparison
-                console.print(f"  Applying AI fixes based on previous comparison...")
-                prev_comparison = iterations[-1].get("comparison", {})
-                diffs_to_fix = _extract_fix_instructions(prev_comparison)
+                # Check if scores are plateauing — if so, re-extract with context
+                recent_scores = [it.get("comparison", {}).get("scores", {}).get("overall", 0) for it in iterations[-2:]]
+                is_plateau = len(recent_scores) >= 2 and abs(recent_scores[-1] - recent_scores[-2]) < 2.0
 
-                if diffs_to_fix:
-                    console.print(f"  Fixing {len(diffs_to_fix)} issues...")
-                    current_xml_content = fix_musicxml(current_xml_content, diffs_to_fix)
+                if is_plateau and iteration >= 3:
+                    # Nuclear option: re-extract from scratch with error knowledge
+                    console.print(f"  [yellow]Scores plateauing ({recent_scores[-1]:.1f}%). Re-extracting with error context...[/yellow]")
+                    all_errors = []
+                    for it in iterations:
+                        for pd in it.get("comparison", {}).get("part_diffs", []):
+                            for md in pd.get("measure_diffs", []):
+                                all_errors.extend(md.get("diffs", []))
+                    score_trend = [it.get("comparison", {}).get("scores", {}).get("overall", 0) for it in iterations]
+
+                    try:
+                        json_str = reextract_with_context(gt_png, all_errors, score_trend, model=model, use_thinking=use_thinking)
+                        import json as json_mod
+                        data = json_mod.loads(json_str)
+                        from core.extractor import _build_score
+                        score = _build_score(data)
+                        current_xml_content = build_musicxml(score)
+                        console.print(f"  [green]Re-extraction complete. Testing...[/green]")
+                    except Exception as e:
+                        console.print(f"  [red]Re-extraction failed: {e}. Falling back to fix mode.[/red]")
+                        prev_comparison = iterations[-1].get("comparison", {})
+                        diffs_to_fix = _extract_fix_instructions(prev_comparison)
+                        if diffs_to_fix:
+                            current_xml_content = fix_musicxml(current_xml_content, diffs_to_fix, image_path=gt_png, model=model)
                 else:
-                    console.print(f"  [yellow]No specific diffs to fix. Re-extracting...[/yellow]")
-                    score = extract_from_image(gt_png, model=model)
-                    current_xml_content = build_musicxml(score)
+                    # Normal fix path: apply fixes with image awareness
+                    console.print(f"  Applying AI fixes based on previous comparison...")
+                    prev_comparison = iterations[-1].get("comparison", {})
+                    diffs_to_fix = _extract_fix_instructions(prev_comparison)
+
+                    if diffs_to_fix:
+                        console.print(f"  Fixing {len(diffs_to_fix)} issues (image-aware)...")
+                        current_xml_content = fix_musicxml(current_xml_content, diffs_to_fix, image_path=gt_png, model=model)
+                    else:
+                        console.print(f"  [yellow]No specific diffs to fix. Re-extracting...[/yellow]")
+                        score = extract_from_image(gt_png, model=model, two_pass=two_pass, use_thinking=use_thinking)
+                        current_xml_content = build_musicxml(score)
 
             # Write extracted MusicXML
             with open(extracted_xml_path, "w", encoding="utf-8") as f:
@@ -300,10 +331,12 @@ def _analyze_failures(iterations: list[dict]) -> dict:
 @click.command()
 @click.option("--fixture", "-f", default=None, help="Run only this fixture")
 @click.option("--fixture-dir", "-d", default=None, help="Directory with MusicXML fixtures")
-@click.option("--max-iterations", "-n", default=3, help="Max iterations per fixture")
-@click.option("--threshold", "-t", default=95.0, help="Stop when overall accuracy >= this")
+@click.option("--max-iterations", "-n", default=5, help="Max iterations per fixture")
+@click.option("--threshold", "-t", default=100.0, help="Stop when overall accuracy >= this")
 @click.option("--model", "-m", default="claude-sonnet-4-5-20250929", help="Claude model")
-def main(fixture, fixture_dir, max_iterations, threshold, model):
+@click.option("--two-pass/--single-pass", default=True, help="Use two-pass extraction (structure then details)")
+@click.option("--thinking/--no-thinking", default=True, help="Use extended thinking for complex analysis")
+def main(fixture, fixture_dir, max_iterations, threshold, model, two_pass, thinking):
     """Run the ScoreForge iteration loop on test fixtures."""
     fdir = Path(fixture_dir) if fixture_dir else FIXTURE_DIR
 
@@ -328,7 +361,8 @@ def main(fixture, fixture_dir, max_iterations, threshold, model):
         f"Fixtures: {len(fixtures)}\n"
         f"Max iterations: {max_iterations}\n"
         f"Threshold: {threshold}%\n"
-        f"Model: {model}",
+        f"Model: {model}\n"
+        f"Two-pass: {two_pass} | Thinking: {thinking}",
         title="Configuration",
     ))
 
@@ -344,6 +378,8 @@ def main(fixture, fixture_dir, max_iterations, threshold, model):
             max_iterations=max_iterations,
             threshold=threshold,
             model=model,
+            two_pass=two_pass,
+            use_thinking=thinking,
         )
         all_summaries.append(summary)
 

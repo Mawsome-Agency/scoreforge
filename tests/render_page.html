@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script src="https://www.verovio.org/javascript/3.16.0/verovio-toolkit-wasm.js"></script>
+<style>
+body { margin: 0; padding: 20px; background: #fff; }
+#output { width: 100%; }
+#output svg { width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<div id="output">Loading Verovio...</div>
+<script>
+const MUSICXML = `PLACEHOLDER`;
+
+document.addEventListener('DOMContentLoaded', () => {
+    verovio.module.onRuntimeInitialized = function() {
+        try {
+            const tk = new verovio.toolkit();
+            tk.setOptions(JSON.stringify({
+                scale: 50,
+                pageWidth: 1600,
+                pageHeight: 2400,
+                adjustPageHeight: 1,
+                breaks: 'auto',
+            }));
+            tk.loadData(MUSICXML);
+            document.getElementById('output').innerHTML = tk.renderToSVG(1, {});
+            document.title = 'RENDERED';
+        } catch(e) {
+            document.getElementById('output').innerHTML = 'Error: ' + e.message;
+            document.title = 'ERROR';
+        }
+    };
+});
+</script>
+</body>
+</html>

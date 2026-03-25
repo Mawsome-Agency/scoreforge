@@ -144,14 +144,9 @@ def main(input_path, output, validate, max_iterations, threshold, model, verbose
             "differences": [],
         }
 
-        if pixel_result["match_score"] >= threshold:
-            console.print(f"\n[bold green]Match score {pixel_result['match_score']} >= {threshold} threshold. Done![/bold green]")
-            best_xml = musicxml_content
-            best_score = pixel_result["match_score"]
-            report_iterations.append(iter_data)
-            break
-
-        # AI comparison for detailed diffs
+        # AI comparison is the PRIMARY gate — pixel comparison is supplementary
+        # (Pixel comparison between two sheet music images is unreliable for detecting
+        # pitch/duration errors since both images have similar visual structure)
         console.print("  Running AI comparison for detailed diff analysis...")
         ai_result = ai_compare(str(input_path), str(render_path))
 
@@ -159,6 +154,7 @@ def main(input_path, output, validate, max_iterations, threshold, model, verbose
             console.print("[bold green]AI reports perfect match![/bold green]")
             best_xml = musicxml_content
             best_score = 100
+            report_iterations.append(iter_data)
             break
 
         # Show diff summary

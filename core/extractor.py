@@ -12,28 +12,65 @@ from models.measure import Measure, KeySignature, TimeSignature, Clef, Barline
 from models.note import Note, NoteType, Pitch, Accidental
 
 
-EXTRACTION_PROMPT = """You are an expert music notation reader. Analyze this sheet music image and extract EVERY detail into structured JSON.
+# ---------------------------------------------------------------------------
+# Structured two-pass extraction prompts
+# ---------------------------------------------------------------------------
 
-Output a JSON object with this exact structure:
+STRUCTURE_PROMPT = """You are an expert music notation reader. Analyze this sheet music image and extract the HIGH-LEVEL STRUCTURE first.
+
+Output a JSON object with this structure:
 {
   "title": "string or null",
   "composer": "string or null",
+  "page_count_estimate": 1,
   "parts": [
     {
       "name": "string (e.g., 'Piano', 'Violin')",
+      "staves": 1,
+      "clefs": [{"sign": "G", "line": 2}],
+      "measure_count": 8
+    }
+  ],
+  "global_key_signature": {"fifths": 0, "mode": "major"},
+  "global_time_signature": {"beats": 4, "beat_type": 4},
+  "tempo": null
+}
+
+RULES:
+- Count measures carefully by counting barlines. Do NOT guess.
+- For piano/keyboard: staves=2 (treble + bass).
+- Key signature fifths: negative=flats, positive=sharps (-2 = Bb major, 1 = G major, etc.)
+- If there are multiple pages visible, set page_count_estimate accordingly.
+- This is ONLY the structure pass. Do not extract individual notes yet."""
+
+
+DETAIL_PROMPT = """You are an expert music notation reader performing a DETAILED note-by-note extraction.
+
+The score structure has already been identified:
+{structure_json}
+
+Now extract EVERY note, rest, and marking into the full JSON structure below. Be extremely precise.
+
+Output a JSON object with this exact structure:
+{{
+  "title": "string or null",
+  "composer": "string or null",
+  "parts": [
+    {{
+      "name": "string",
       "staves": 1 or 2,
       "measures": [
-        {
+        {{
           "number": 1,
-          "time_signature": {"beats": 4, "beat_type": 4} or null,
-          "key_signature": {"fifths": 0, "mode": "major"} or null,
-          "clef": {"sign": "G", "line": 2} or null,
+          "time_signature": {{"beats": 4, "beat_type": 4}} or null,
+          "key_signature": {{"fifths": 0, "mode": "major"}} or null,
+          "clef": {{"sign": "G", "line": 2}} or null,
           "divisions": 1,
           "notes": [
-            {
+            {{
               "type": "quarter",
               "is_rest": false,
-              "pitch": {"step": "C", "octave": 4, "alter": 0},
+              "pitch": {{"step": "C", "octave": 4, "alter": 0}},
               "accidental": null,
               "dots": 0,
               "is_chord": false,
@@ -49,30 +86,71 @@ Output a JSON object with this exact structure:
               "lyrics": [],
               "fermata": false,
               "grace": false
-            }
+            }}
           ],
           "barline_right": null,
           "tempo": null
-        }
+        }}
       ]
-    }
+    }}
   ]
-}
+}}
 
-CRITICAL RULES:
-- Extract EVERY note, rest, and marking. Missing even one note makes the output wrong.
-- For piano/keyboard: staves=2, staff=1 for treble, staff=2 for bass
-- Accidentals: "sharp", "flat", "natural", "double-sharp", "double-flat"
-- Note types: "whole", "half", "quarter", "eighth", "16th", "32nd", "64th"
-- Key signature fifths: negative=flats, positive=sharps (e.g., -3 = Eb major / C minor)
-- Include time/key/clef only when they CHANGE (first measure must have all three)
-- Chords: first note has is_chord=false, subsequent stacked notes have is_chord=true
-- Beam groups: "begin", "continue", "end"
-- divisions = number of divisions per quarter note (determines duration math)
-- Each note's duration should be expressed in divisions (quarter=divisions, half=2*divisions, etc.)
+CRITICAL RULES — READ CAREFULLY:
 
-Be extremely precise. Count every beat. Verify note durations add up to the time signature per measure."""
+1. COMPLETENESS: Extract EVERY note, rest, and marking. Missing even one note is a failure.
 
+2. DURATION MATH — SELF-VERIFICATION REQUIRED:
+   - "divisions" = number of divisions per quarter note.
+   - In each measure, the sum of non-chord note durations MUST equal:
+     (time_signature.beats / time_signature.beat_type) * 4 * divisions
+   - Example: 4/4 with divisions=1 => total = 4. 6/8 with divisions=2 => total = 6.
+   - For EACH measure, after writing it, mentally verify: do the note durations sum correctly?
+   - If they don't, fix them before moving on.
+
+3. PITCH ACCURACY:
+   - Middle C = C4. The treble clef (G clef, line 2) places G4 on the second line.
+   - Bass clef (F clef, line 4) places F3 on the fourth line.
+   - Count lines and spaces carefully from the clef reference point.
+   - Remember key signature accidentals apply to ALL octaves of that note unless cancelled by a natural.
+
+4. KEY/TIME/CLEF RULES:
+   - First measure MUST include time_signature, key_signature, and clef.
+   - Subsequent measures: include these ONLY when they CHANGE.
+
+5. CHORD NOTATION:
+   - First note in a chord: is_chord = false
+   - Additional stacked notes: is_chord = true (same duration, share the beat)
+
+6. MULTI-STAFF (Piano):
+   - staves = 2
+   - staff = 1 for treble, staff = 2 for bass
+   - Use voice = 1 for treble staff notes, voice = 2 for bass staff notes
+
+7. NOTE TYPES: "whole", "half", "quarter", "eighth", "16th", "32nd", "64th"
+
+8. ACCIDENTALS: "sharp", "flat", "natural", "double-sharp", "double-flat"
+   - Set "alter" in pitch: -1 for flat, 1 for sharp, 0 for natural, -2 for double-flat, 2 for double-sharp
+   - Set "accidental" string only when the accidental is PRINTED on the note (not implied by key sig)
+
+9. BEAMS: "begin", "continue", "end" — for grouped eighth/sixteenth notes
+
+10. BARLINES: null for normal, {{"style": "light-heavy"}} for final, {{"style": "light-light"}} for double
+
+11. TIES: A curved line connecting two notes of the SAME pitch across beats or barlines.
+    - First note: tie_start = true
+    - Second note: tie_stop = true
+
+FINAL SELF-CHECK: After completing extraction, verify:
+- Total measure count matches what you see in the image
+- Each measure's note durations sum to the time signature
+- No notes are missing from any measure
+- Pitches are correct relative to the clef and key signature"""
+
+
+# ---------------------------------------------------------------------------
+# Image encoding
+# ---------------------------------------------------------------------------
 
 def encode_image(image_path: str) -> tuple[str, str]:
     """Encode an image file to base64 with media type."""
@@ -94,48 +172,200 @@ def encode_image(image_path: str) -> tuple[str, str]:
     return data, media_type
 
 
-def extract_from_image(image_path: str, model: str = "claude-sonnet-4-5-20250929") -> Score:
-    """Extract musical score from an image using Claude Vision."""
+def encode_pdf_pages(pdf_path: str) -> list[tuple[str, str]]:
+    """Encode a multi-page PDF as individual page images.
+
+    Falls back to sending the whole PDF if conversion tools aren't available.
+    Returns list of (base64_data, media_type) tuples.
+    """
+    path = Path(pdf_path)
+    if path.suffix.lower() != ".pdf":
+        return [encode_image(pdf_path)]
+
+    # Try to split PDF pages using Pillow (requires pdf2image or similar)
+    # Fallback: send the whole PDF as one document
+    data, media_type = encode_image(pdf_path)
+    return [(data, media_type)]
+
+
+# ---------------------------------------------------------------------------
+# Main extraction entry point
+# ---------------------------------------------------------------------------
+
+def extract_from_image(
+    image_path: str,
+    model: str = "claude-sonnet-4-5-20250929",
+    use_thinking: bool = True,
+    two_pass: bool = True,
+) -> Score:
+    """Extract musical score from an image using Claude Vision.
+
+    Args:
+        image_path: Path to sheet music image (PNG, JPG, PDF).
+        model: Claude model to use.
+        use_thinking: Whether to use extended thinking for complex analysis.
+        two_pass: Whether to do structure-first then detail extraction.
+
+    Returns:
+        Parsed Score object.
+    """
     client = anthropic.Anthropic()
     image_data, media_type = encode_image(image_path)
 
-    message = client.messages.create(
+    image_block = {
+        "type": "image",
+        "source": {
+            "type": "base64",
+            "media_type": media_type,
+            "data": image_data,
+        },
+    }
+
+    if two_pass:
+        return _extract_two_pass(client, image_block, model, use_thinking)
+    else:
+        return _extract_single_pass(client, image_block, model, use_thinking)
+
+
+# ---------------------------------------------------------------------------
+# Two-pass extraction (structure first, then details)
+# ---------------------------------------------------------------------------
+
+def _extract_two_pass(
+    client: anthropic.Anthropic,
+    image_block: dict,
+    model: str,
+    use_thinking: bool,
+) -> Score:
+    """Two-pass extraction: structure first, then note-by-note details."""
+
+    # --- Pass 1: Extract structure ---
+    structure_msg = client.messages.create(
         model=model,
-        max_tokens=16000,
+        max_tokens=4000,
         messages=[
             {
                 "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": image_data,
-                        },
-                    },
-                    {
-                        "type": "text",
-                        "text": EXTRACTION_PROMPT,
-                    },
-                ],
+                "content": [image_block, {"type": "text", "text": STRUCTURE_PROMPT}],
             }
         ],
     )
 
-    # Parse the JSON response
-    response_text = message.content[0].text
+    structure_text = structure_msg.content[0].text
+    structure_json_str = _extract_json_from_response(structure_text)
+    structure_data = json.loads(structure_json_str)
 
-    # Extract JSON from response (may be wrapped in markdown code blocks)
-    json_str = response_text
-    if "```json" in json_str:
-        json_str = json_str.split("```json")[1].split("```")[0]
-    elif "```" in json_str:
-        json_str = json_str.split("```")[1].split("```")[0]
+    # --- Pass 2: Extract detailed notes ---
+    detail_prompt = DETAIL_PROMPT.format(
+        structure_json=json.dumps(structure_data, indent=2)
+    )
 
-    data = json.loads(json_str.strip())
+    # Build the API call kwargs
+    api_kwargs = {
+        "model": model,
+        "max_tokens": 16000,
+        "messages": [
+            {
+                "role": "user",
+                "content": [image_block, {"type": "text", "text": detail_prompt}],
+            }
+        ],
+    }
+
+    # Use extended thinking for complex scores if the model supports it
+    if use_thinking and _model_supports_thinking(model):
+        api_kwargs["thinking"] = {
+            "type": "enabled",
+            "budget_tokens": 10000,
+        }
+        # Extended thinking requires higher max_tokens
+        api_kwargs["max_tokens"] = 32000
+
+    detail_msg = client.messages.create(**api_kwargs)
+
+    # Extract text content (skip thinking blocks)
+    response_text = _get_text_from_response(detail_msg)
+    json_str = _extract_json_from_response(response_text)
+    data = json.loads(json_str)
+
     return _build_score(data)
 
+
+# ---------------------------------------------------------------------------
+# Single-pass extraction (legacy / simpler path)
+# ---------------------------------------------------------------------------
+
+def _extract_single_pass(
+    client: anthropic.Anthropic,
+    image_block: dict,
+    model: str,
+    use_thinking: bool,
+) -> Score:
+    """Single-pass extraction with the full detail prompt."""
+
+    # Use a minimal structure placeholder for the detail prompt
+    placeholder = {"note": "Structure not pre-analyzed. Extract everything from the image."}
+    detail_prompt = DETAIL_PROMPT.format(
+        structure_json=json.dumps(placeholder, indent=2)
+    )
+
+    api_kwargs = {
+        "model": model,
+        "max_tokens": 16000,
+        "messages": [
+            {
+                "role": "user",
+                "content": [image_block, {"type": "text", "text": detail_prompt}],
+            }
+        ],
+    }
+
+    if use_thinking and _model_supports_thinking(model):
+        api_kwargs["thinking"] = {
+            "type": "enabled",
+            "budget_tokens": 10000,
+        }
+        api_kwargs["max_tokens"] = 32000
+
+    message = client.messages.create(**api_kwargs)
+    response_text = _get_text_from_response(message)
+    json_str = _extract_json_from_response(response_text)
+    data = json.loads(json_str)
+
+    return _build_score(data)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _model_supports_thinking(model: str) -> bool:
+    """Check if the model supports extended thinking."""
+    thinking_models = ["claude-sonnet-4-5", "claude-3-7-sonnet"]
+    return any(m in model for m in thinking_models)
+
+
+def _get_text_from_response(message) -> str:
+    """Extract text content from a message, skipping thinking blocks."""
+    for block in message.content:
+        if hasattr(block, "type") and block.type == "text":
+            return block.text
+    # Fallback
+    return message.content[0].text if message.content else ""
+
+
+def _extract_json_from_response(text: str) -> str:
+    """Extract JSON from a response that may be wrapped in markdown code blocks."""
+    if "```json" in text:
+        return text.split("```json")[1].split("```")[0].strip()
+    elif "```" in text:
+        return text.split("```")[1].split("```")[0].strip()
+    return text.strip()
+
+
+# ---------------------------------------------------------------------------
+# Score model building
+# ---------------------------------------------------------------------------
 
 def _build_score(data: dict) -> Score:
     """Convert raw JSON extraction to Score model."""

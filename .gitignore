@@ -1,4 +1,32 @@
-node_modules/
+# Python
 __pycache__/
-tests/output/*.html
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
 package*.json
+
+# Generated test artifacts
+results/
+tests/fixtures/*.png
+tests/fixtures/*.svg
+tests/output/*.html
+
+# Environment
+.env
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

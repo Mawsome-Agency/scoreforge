@@ -1,19 +1,30 @@
 """Render MusicXML back to images for visual comparison."""
+import glob
 import os
 import subprocess
 import tempfile
 from pathlib import Path
 from typing import Optional
 
+from PIL import Image
+
+
+# Verovio CLI path — prefer the known homebrew location
+VEROVIO_BIN = "/opt/homebrew/bin/verovio"
+RSVG_BIN = "/opt/local/bin/rsvg-convert"
+
 
 def render_musicxml_to_image(
     musicxml_path: str,
     output_path: Optional[str] = None,
     dpi: int = 150,
+    scale: int = 100,
 ) -> str:
-    """Render MusicXML to a PNG image using MuseScore or Verovio.
+    """Render MusicXML to a PNG image using Verovio CLI.
 
-    Returns the path to the rendered image.
+    Verovio renders to SVG, then rsvg-convert (or Pillow fallback) converts to PNG.
+
+    Returns the path to the rendered PNG image.
     """
     musicxml_path = Path(musicxml_path)
     if not musicxml_path.exists():
@@ -22,120 +33,244 @@ def render_musicxml_to_image(
     if output_path is None:
         output_path = str(musicxml_path.with_suffix(".png"))
 
-    # Try MuseScore first (best quality)
-    if _has_musescore():
-        return _render_with_musescore(str(musicxml_path), output_path, dpi)
+    verovio = _find_verovio()
+    if verovio is None:
+        raise RuntimeError(
+            "Verovio not found. Install via: brew install verovio"
+        )
 
-    # Try Verovio (lightweight, no GUI needed)
-    if _has_verovio():
-        return _render_with_verovio(str(musicxml_path), output_path)
+    # Render MusicXML -> SVG with verovio
+    svg_path = _render_to_svg(verovio, str(musicxml_path), scale=scale)
 
-    # Fallback: use music21 + lilypond
-    if _has_lilypond():
-        return _render_with_lilypond(str(musicxml_path), output_path)
+    # Convert SVG -> PNG
+    _svg_to_png(svg_path, output_path, dpi=dpi)
 
-    raise RuntimeError(
-        "No rendering backend found. Install one of: "
-        "musescore4, verovio (npm install verovio), or lilypond"
-    )
+    # Clean up intermediate SVG(s)
+    _cleanup_svgs(svg_path)
 
-
-def _has_musescore() -> bool:
-    """Check if MuseScore is installed."""
-    for cmd in ["musescore4", "musescore3", "mscore", "MuseScore4"]:
-        try:
-            subprocess.run([cmd, "--version"], capture_output=True, timeout=5)
-            return True
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            continue
-    return False
-
-
-def _get_musescore_cmd() -> str:
-    for cmd in ["musescore4", "musescore3", "mscore", "MuseScore4"]:
-        try:
-            subprocess.run([cmd, "--version"], capture_output=True, timeout=5)
-            return cmd
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            continue
-    raise RuntimeError("MuseScore not found")
-
-
-def _render_with_musescore(musicxml_path: str, output_path: str, dpi: int) -> str:
-    """Render using MuseScore CLI."""
-    cmd = _get_musescore_cmd()
-    result = subprocess.run(
-        [cmd, "-o", output_path, "-r", str(dpi), musicxml_path],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"MuseScore rendering failed: {result.stderr}")
     return output_path
 
 
-def _has_verovio() -> bool:
+def render_musicxml_to_svg(
+    musicxml_path: str,
+    output_path: Optional[str] = None,
+    scale: int = 100,
+) -> str:
+    """Render MusicXML to SVG using Verovio CLI.
+
+    Returns the path to the SVG file (first page if multi-page).
+    """
+    musicxml_path = Path(musicxml_path)
+    if not musicxml_path.exists():
+        raise FileNotFoundError(f"MusicXML file not found: {musicxml_path}")
+
+    if output_path is None:
+        output_path = str(musicxml_path.with_suffix(".svg"))
+
+    verovio = _find_verovio()
+    if verovio is None:
+        raise RuntimeError("Verovio not found. Install via: brew install verovio")
+
+    return _render_to_svg(verovio, str(musicxml_path), output_path, scale=scale)
+
+
+def _find_verovio() -> Optional[str]:
+    """Find the verovio binary."""
+    # Check the known homebrew path first
+    if os.path.isfile(VEROVIO_BIN) and os.access(VEROVIO_BIN, os.X_OK):
+        return VEROVIO_BIN
+
+    # Fallback: search PATH
     try:
-        subprocess.run(["verovio", "--version"], capture_output=True, timeout=5)
-        return True
+        result = subprocess.run(
+            ["which", "verovio"], capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
     except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
+        pass
+
+    return None
 
 
-def _render_with_verovio(musicxml_path: str, output_path: str) -> str:
-    """Render using Verovio CLI."""
-    result = subprocess.run(
-        ["verovio", musicxml_path, "-o", output_path, "--format", "png"],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"Verovio rendering failed: {result.stderr}")
-    return output_path
-
-
-def _has_lilypond() -> bool:
-    try:
-        subprocess.run(["lilypond", "--version"], capture_output=True, timeout=5)
-        return True
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
-
-
-def _render_with_lilypond(musicxml_path: str, output_path: str) -> str:
-    """Render using music21 -> LilyPond pipeline."""
-    import music21
-    score = music21.converter.parse(musicxml_path)
-    lily = music21.lily.translate.LilypondConverter()
-    lily.loadObjectFromScore(score)
-
-    with tempfile.NamedTemporaryFile(suffix=".ly", delete=False) as f:
-        ly_path = f.name
-        f.write(lily.output.encode())
+def _find_rsvg() -> Optional[str]:
+    """Find the rsvg-convert binary."""
+    if os.path.isfile(RSVG_BIN) and os.access(RSVG_BIN, os.X_OK):
+        return RSVG_BIN
 
     try:
         result = subprocess.run(
-            ["lilypond", "--png", "-o", output_path.replace(".png", ""), ly_path],
-            capture_output=True,
-            text=True,
-            timeout=60,
+            ["which", "rsvg-convert"], capture_output=True, text=True, timeout=5
         )
-        if result.returncode != 0:
-            raise RuntimeError(f"LilyPond rendering failed: {result.stderr}")
-    finally:
-        os.unlink(ly_path)
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    return None
+
+
+def _render_to_svg(
+    verovio_bin: str,
+    musicxml_path: str,
+    output_path: Optional[str] = None,
+    scale: int = 100,
+) -> str:
+    """Render MusicXML to SVG using verovio CLI.
+
+    Args:
+        verovio_bin: Path to verovio binary.
+        musicxml_path: Path to input MusicXML file.
+        output_path: Path for output SVG. If None, uses a temp file.
+        scale: Rendering scale percentage (100 = normal).
+
+    Returns:
+        Path to the output SVG file.
+    """
+    if output_path is None:
+        fd, output_path = tempfile.mkstemp(suffix=".svg")
+        os.close(fd)
+
+    cmd = [
+        verovio_bin,
+        musicxml_path,
+        "-f", "xml",          # input format: MusicXML
+        "-o", output_path,
+        "--all-pages",         # render all pages into a single SVG
+        "-s", str(scale),
+        "--adjust-page-height",  # fit content height
+    ]
+
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Verovio rendering failed (exit {result.returncode}):\n"
+            f"  cmd: {' '.join(cmd)}\n"
+            f"  stderr: {result.stderr.strip()}"
+        )
+
+    # Verovio may produce multi-page SVGs as name_001.svg, name_002.svg, etc.
+    # For --all-pages with a single output file, it typically creates one file.
+    # Check if the output exists at the expected path.
+    if not os.path.isfile(output_path):
+        # Try the _001 variant
+        stem = Path(output_path).stem
+        parent = Path(output_path).parent
+        page1 = parent / f"{stem}_001.svg"
+        if page1.exists():
+            return str(page1)
+        raise RuntimeError(f"Verovio did not produce expected output at: {output_path}")
 
     return output_path
 
 
+def _svg_to_png(svg_path: str, png_path: str, dpi: int = 150) -> str:
+    """Convert SVG to PNG.
+
+    Uses rsvg-convert if available, otherwise falls back to Pillow.
+    Handles multi-page SVGs (stacks them vertically).
+    """
+    # Collect all SVG pages
+    svg_pages = _collect_svg_pages(svg_path)
+
+    rsvg = _find_rsvg()
+
+    page_images = []
+    for svg_page in svg_pages:
+        if rsvg:
+            # Use rsvg-convert for high-quality rendering
+            fd, tmp_png = tempfile.mkstemp(suffix=".png")
+            os.close(fd)
+            result = subprocess.run(
+                [rsvg, svg_page, "-o", tmp_png, f"--dpi-x={dpi}", f"--dpi-y={dpi}"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"rsvg-convert failed: {result.stderr}")
+            page_images.append(Image.open(tmp_png))
+        else:
+            # Fallback: try cairosvg if installed, otherwise error
+            try:
+                import cairosvg
+                fd, tmp_png = tempfile.mkstemp(suffix=".png")
+                os.close(fd)
+                cairosvg.svg2png(url=svg_page, write_to=tmp_png, dpi=dpi)
+                page_images.append(Image.open(tmp_png))
+            except ImportError:
+                raise RuntimeError(
+                    "No SVG-to-PNG converter found. Install rsvg-convert "
+                    "(brew install librsvg) or cairosvg (pip install cairosvg)."
+                )
+
+    if not page_images:
+        raise RuntimeError("No SVG pages were rendered.")
+
+    # If single page, save directly
+    if len(page_images) == 1:
+        page_images[0].save(png_path)
+    else:
+        # Stack pages vertically
+        total_width = max(img.width for img in page_images)
+        total_height = sum(img.height for img in page_images)
+        combined = Image.new("RGBA", (total_width, total_height), (255, 255, 255, 255))
+        y_offset = 0
+        for img in page_images:
+            combined.paste(img, (0, y_offset))
+            y_offset += img.height
+        combined.save(png_path)
+
+    return png_path
+
+
+def _collect_svg_pages(svg_path: str) -> list[str]:
+    """Collect all SVG page files.
+
+    Verovio may output:
+    - Single file: output.svg
+    - Multi-page: output_001.svg, output_002.svg, etc.
+    """
+    if os.path.isfile(svg_path):
+        return [svg_path]
+
+    # Check for numbered pages
+    stem = Path(svg_path).stem
+    parent = Path(svg_path).parent
+    pattern = str(parent / f"{stem}_*.svg")
+    pages = sorted(glob.glob(pattern))
+    if pages:
+        return pages
+
+    raise FileNotFoundError(f"SVG not found at {svg_path} or as numbered pages")
+
+
+def _cleanup_svgs(svg_path: str):
+    """Remove temporary SVG files."""
+    pages = []
+    if os.path.isfile(svg_path):
+        pages.append(svg_path)
+
+    stem = Path(svg_path).stem
+    parent = Path(svg_path).parent
+    pattern = str(parent / f"{stem}_*.svg")
+    pages.extend(glob.glob(pattern))
+
+    for page in pages:
+        try:
+            os.unlink(page)
+        except OSError:
+            pass
+
+
 def get_available_renderer() -> str:
-    """Return the name of the first available renderer."""
-    if _has_musescore():
-        return "musescore"
-    if _has_verovio():
+    """Return the name of the available renderer."""
+    if _find_verovio():
         return "verovio"
-    if _has_lilypond():
-        return "lilypond"
     return "none"

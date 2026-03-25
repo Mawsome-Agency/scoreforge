@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScoreForge — Visual Comparison</title>
+    <script src="https://www.verovio.org/javascript/develop/verovio-toolkit-wasm.js" defer></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        .header {
+            background: #1a1a2e;
+            border-bottom: 2px solid #16213e;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #e94560;
+        }
+        .header h1 span { color: #a0a0a0; font-weight: 400; }
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .btn {
+            background: #16213e;
+            border: 1px solid #e94560;
+            color: #e94560;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #e94560; color: #fff; }
+        .btn.active { background: #e94560; color: #fff; }
+        .iteration-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1a1a2e;
+            padding: 8px 16px;
+            border-bottom: 1px solid #16213e;
+        }
+        .iteration-nav .step {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            border: 2px solid #333;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .iteration-nav .step.active { border-color: #e94560; background: #e94560; color: #fff; }
+        .iteration-nav .step.complete { border-color: #4ade80; background: #4ade8033; color: #4ade80; }
+        .iteration-nav .step-line {
+            width: 24px; height: 2px; background: #333;
+        }
+        .iteration-nav .step-line.complete { background: #4ade80; }
+        .score-badge {
+            margin-left: auto;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .score-badge.low { background: #ef444433; color: #ef4444; }
+        .score-badge.mid { background: #f59e0b33; color: #f59e0b; }
+        .score-badge.high { background: #4ade8033; color: #4ade80; }
+        .main {
+            display: flex;
+            height: calc(100vh - 100px);
+        }
+        .panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .panel + .panel { border-left: 2px solid #16213e; }
+        .panel-header {
+            background: #16213e;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .panel-header .tag {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .tag.original { background: #3b82f633; color: #3b82f6; }
+        .tag.rendered { background: #a855f733; color: #a855f7; }
+        .tag.diff { background: #ef444433; color: #ef4444; }
+        .panel-body {
+            flex: 1;
+            overflow: auto;
+            padding: 16px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            background: #0a0a0a;
+        }
+        .panel-body img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        #verovio-output {
+            background: #fff;
+            border-radius: 4px;
+            padding: 12px;
+            min-height: 200px;
+            width: 100%;
+        }
+        #verovio-output svg { width: 100%; height: auto; }
+        .diff-panel .panel-body {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+            padding: 12px;
+        }
+        .diff-item {
+            background: #1a1a2e;
+            border-radius: 6px;
+            padding: 10px 14px;
+            border-left: 3px solid #333;
+        }
+        .diff-item.critical { border-left-color: #ef4444; }
+        .diff-item.major { border-left-color: #f59e0b; }
+        .diff-item.minor { border-left-color: #3b82f6; }
+        .diff-item .severity {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .diff-item .description { font-size: 13px; color: #ccc; }
+        .diff-item .measure { font-size: 11px; color: #888; margin-top: 4px; }
+        .drop-zone {
+            border: 2px dashed #333;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 20px;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: #e94560;
+            background: #e9456011;
+        }
+        .drop-zone h3 { color: #888; margin-bottom: 8px; }
+        .drop-zone p { color: #555; font-size: 13px; }
+        .metrics-bar {
+            display: flex;
+            gap: 16px;
+            padding: 12px 16px;
+            background: #111;
+            border-top: 1px solid #16213e;
+            font-size: 12px;
+        }
+        .metric {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .metric .label { color: #888; }
+        .metric .value { font-weight: 700; }
+        .view-toggle {
+            display: flex;
+            gap: 4px;
+            background: #111;
+            border-radius: 6px;
+            padding: 2px;
+        }
+        .view-toggle .btn { padding: 4px 10px; font-size: 11px; border: none; }
+        .hidden { display: none; }
+        /* Overlay mode */
+        .overlay-container { position: relative; }
+        .overlay-container img,
+        .overlay-container .verovio-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+        }
+        .overlay-container .verovio-overlay { opacity: 0.5; mix-blend-mode: difference; }
+        input[type="range"] {
+            accent-color: #e94560;
+        }
+        .load-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            padding: 40px;
+            width: 100%;
+            max-width: 800px;
+            margin: 40px auto;
+        }
+        .file-input-row {
+            display: flex;
+            gap: 16px;
+            width: 100%;
+        }
+        .file-input-box {
+            flex: 1;
+            background: #1a1a2e;
+            border: 2px dashed #333;
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .file-input-box:hover { border-color: #e94560; }
+        .file-input-box h4 { margin-bottom: 8px; }
+        .file-input-box p { font-size: 12px; color: #666; }
+        .file-input-box input { display: none; }
+        .file-input-box.loaded { border-color: #4ade80; border-style: solid; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ScoreForge <span>Visual Comparison</span></h1>
+        <div class="controls">
+            <div class="view-toggle">
+                <button class="btn active" data-view="side-by-side">Side by Side</button>
+                <button class="btn" data-view="overlay">Overlay</button>
+                <button class="btn" data-view="slider">Slider</button>
+            </div>
+            <button class="btn" id="load-report-btn">Load Report</button>
+            <input type="file" id="report-input" accept=".json,.html" style="display:none">
+        </div>
+    </div>
+
+    <!-- Initial load screen -->
+    <div id="load-screen" class="load-section">
+        <h2 style="color: #e94560;">Load Sheet Music Comparison</h2>
+        <p style="color: #888;">Load an original image and MusicXML file, or drop a ScoreForge report.</p>
+        <div class="file-input-row">
+            <div class="file-input-box" id="original-drop">
+                <h4>Original Sheet Music</h4>
+                <p>PNG, JPG, or PDF</p>
+                <input type="file" id="original-input" accept="image/*,.pdf">
+            </div>
+            <div class="file-input-box" id="musicxml-drop">
+                <h4>MusicXML Output</h4>
+                <p>.musicxml or .xml</p>
+                <input type="file" id="musicxml-input" accept=".musicxml,.xml,.mxl">
+            </div>
+        </div>
+        <div class="file-input-box" id="report-drop" style="width:100%">
+            <h4>Or Load a ScoreForge Report</h4>
+            <p>.json report file with all iterations embedded</p>
+            <input type="file" id="report-file-input" accept=".json">
+        </div>
+    </div>
+
+    <!-- Main comparison view (hidden until loaded) -->
+    <div id="comparison-view" class="hidden">
+        <div class="iteration-nav" id="iteration-nav"></div>
+        <div class="main" id="main-panels">
+            <!-- Side by side (default) -->
+            <div class="panel" id="panel-original">
+                <div class="panel-header">
+                    Original <span class="tag original">Source</span>
+                </div>
+                <div class="panel-body" id="original-display"></div>
+            </div>
+            <div class="panel" id="panel-rendered">
+                <div class="panel-header">
+                    MusicXML Render <span class="tag rendered">Verovio</span>
+                </div>
+                <div class="panel-body">
+                    <div id="verovio-output"></div>
+                </div>
+            </div>
+            <div class="panel diff-panel" id="panel-diff">
+                <div class="panel-header">
+                    Differences <span class="tag diff" id="diff-count">0</span>
+                </div>
+                <div class="panel-body" id="diff-list"></div>
+            </div>
+        </div>
+        <div class="metrics-bar" id="metrics-bar">
+            <div class="metric"><span class="label">Match Score:</span> <span class="value" id="metric-score">—</span></div>
+            <div class="metric"><span class="label">Pixel Diff:</span> <span class="value" id="metric-pixel">—</span></div>
+            <div class="metric"><span class="label">Notes Extracted:</span> <span class="value" id="metric-notes">—</span></div>
+            <div class="metric"><span class="label">Measures:</span> <span class="value" id="metric-measures">—</span></div>
+            <div class="metric"><span class="label">Iteration:</span> <span class="value" id="metric-iteration">—</span></div>
+        </div>
+    </div>
+
+    <script>
+    let vrvToolkit = null;
+    let reportData = null;
+    let currentIteration = 0;
+    let originalImageData = null;
+
+    // Initialize Verovio
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const VerovioModule = await verovio.module;
+            vrvToolkit = new verovio.toolkit();
+            vrvToolkit.setOptions({
+                scale: 40,
+                pageWidth: 2000,
+                pageHeight: 3000,
+                adjustPageHeight: true,
+                breaks: 'auto',
+                spacingStaff: 8,
+                spacingSystem: 12,
+                font: 'Bravura',
+            });
+            console.log('Verovio initialized');
+        } catch (e) {
+            console.error('Verovio init failed:', e);
+        }
+    });
+
+    // File input handlers
+    document.getElementById('original-drop').addEventListener('click', () => {
+        document.getElementById('original-input').click();
+    });
+    document.getElementById('musicxml-drop').addEventListener('click', () => {
+        document.getElementById('musicxml-input').click();
+    });
+    document.getElementById('report-drop').addEventListener('click', () => {
+        document.getElementById('report-file-input').click();
+    });
+
+    document.getElementById('original-input').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            originalImageData = ev.target.result;
+            document.getElementById('original-drop').classList.add('loaded');
+            document.getElementById('original-drop').querySelector('h4').textContent = file.name;
+            tryShowComparison();
+        };
+        reader.readAsDataURL(file);
+    });
+
+    let musicxmlContent = null;
+    document.getElementById('musicxml-input').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            musicxmlContent = ev.target.result;
+            document.getElementById('musicxml-drop').classList.add('loaded');
+            document.getElementById('musicxml-drop').querySelector('h4').textContent = file.name;
+            tryShowComparison();
+        };
+        reader.readAsText(file);
+    });
+
+    document.getElementById('report-file-input').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                reportData = JSON.parse(ev.target.result);
+                loadReport(reportData);
+            } catch (err) {
+                alert('Invalid report file: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    function tryShowComparison() {
+        if (!originalImageData || !musicxmlContent) return;
+        reportData = {
+            source: 'manual',
+            original_image: originalImageData,
+            iterations: [{
+                iteration: 1,
+                musicxml: musicxmlContent,
+                match_score: null,
+                pixel_diff_pct: null,
+                differences: [],
+            }],
+        };
+        loadReport(reportData);
+    }
+
+    function loadReport(data) {
+        document.getElementById('load-screen').classList.add('hidden');
+        document.getElementById('comparison-view').classList.remove('hidden');
+
+        // Build iteration nav
+        const nav = document.getElementById('iteration-nav');
+        nav.innerHTML = '';
+        data.iterations.forEach((iter, i) => {
+            if (i > 0) {
+                const line = document.createElement('div');
+                line.className = 'step-line' + (iter.match_score >= 90 ? ' complete' : '');
+                nav.appendChild(line);
+            }
+            const step = document.createElement('div');
+            step.className = 'step' + (i === 0 ? ' active' : '') + (iter.match_score >= 90 ? ' complete' : '');
+            step.textContent = i + 1;
+            step.addEventListener('click', () => showIteration(i));
+            nav.appendChild(step);
+        });
+
+        // Add score badge
+        const lastIter = data.iterations[data.iterations.length - 1];
+        if (lastIter.match_score !== null) {
+            const badge = document.createElement('div');
+            const score = lastIter.match_score;
+            badge.className = 'score-badge ' + (score >= 90 ? 'high' : score >= 60 ? 'mid' : 'low');
+            badge.textContent = score + '/100';
+            nav.appendChild(badge);
+        }
+
+        showIteration(0);
+    }
+
+    function showIteration(index) {
+        currentIteration = index;
+        const iter = reportData.iterations[index];
+
+        // Update nav
+        document.querySelectorAll('.iteration-nav .step').forEach((el, i) => {
+            el.classList.toggle('active', i === index);
+        });
+
+        // Show original image
+        const origDisplay = document.getElementById('original-display');
+        origDisplay.innerHTML = '';
+        if (reportData.original_image) {
+            const img = document.createElement('img');
+            img.src = reportData.original_image.startsWith('data:')
+                ? reportData.original_image
+                : 'data:image/png;base64,' + reportData.original_image;
+            origDisplay.appendChild(img);
+        }
+
+        // Render MusicXML with Verovio
+        if (vrvToolkit && iter.musicxml) {
+            try {
+                const xml = iter.musicxml;
+                vrvToolkit.loadData(xml);
+                const svg = vrvToolkit.renderToSVG(1);
+                document.getElementById('verovio-output').innerHTML = svg;
+            } catch (e) {
+                document.getElementById('verovio-output').innerHTML =
+                    '<p style="color:#ef4444;padding:20px;">Render error: ' + e.message + '</p>';
+            }
+        }
+
+        // Show differences
+        const diffList = document.getElementById('diff-list');
+        diffList.innerHTML = '';
+        if (iter.differences && iter.differences.length > 0) {
+            iter.differences.forEach(d => {
+                const item = document.createElement('div');
+                item.className = 'diff-item ' + (d.severity || 'minor');
+                item.innerHTML = `
+                    <div class="severity" style="color:${d.severity === 'critical' ? '#ef4444' : d.severity === 'major' ? '#f59e0b' : '#3b82f6'}">${d.severity || 'info'}</div>
+                    <div class="description">${d.description || d.type || 'Unknown difference'}</div>
+                    <div class="measure">${d.measure ? 'Measure ' + d.measure : ''} ${d.type ? '· ' + d.type : ''}</div>
+                `;
+                diffList.appendChild(item);
+            });
+            document.getElementById('diff-count').textContent = iter.differences.length;
+        } else {
+            diffList.innerHTML = '<p style="color:#4ade80;padding:20px;text-align:center;">No differences detected</p>';
+            document.getElementById('diff-count').textContent = '0';
+        }
+
+        // Update metrics
+        document.getElementById('metric-score').textContent = iter.match_score !== null ? iter.match_score + '/100' : '—';
+        document.getElementById('metric-pixel').textContent = iter.pixel_diff_pct !== null ? iter.pixel_diff_pct + '%' : '—';
+        document.getElementById('metric-notes').textContent = iter.note_count || '—';
+        document.getElementById('metric-measures').textContent = iter.measure_count || '—';
+        document.getElementById('metric-iteration').textContent = (index + 1) + '/' + reportData.iterations.length;
+    }
+
+    // View mode toggle
+    document.querySelectorAll('.view-toggle .btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.view-toggle .btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const mode = btn.dataset.view;
+            // Toggle diff panel visibility in side-by-side, hide in other modes
+            const diffPanel = document.getElementById('panel-diff');
+            if (mode === 'side-by-side') {
+                diffPanel.classList.remove('hidden');
+                document.getElementById('panel-original').style.flex = '1';
+                document.getElementById('panel-rendered').style.flex = '1';
+            } else {
+                diffPanel.classList.add('hidden');
+                document.getElementById('panel-original').style.flex = '1';
+                document.getElementById('panel-rendered').style.flex = '1';
+            }
+        });
+    });
+
+    // Drag and drop support
+    ['original-drop', 'musicxml-drop', 'report-drop'].forEach(id => {
+        const el = document.getElementById(id);
+        el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('loaded'); });
+        el.addEventListener('dragleave', () => el.classList.remove('loaded'));
+        el.addEventListener('drop', e => {
+            e.preventDefault();
+            el.classList.remove('loaded');
+            const input = el.querySelector('input');
+            input.files = e.dataTransfer.files;
+            input.dispatchEvent(new Event('change'));
+        });
+    });
+    </script>
+</body>
+</html>

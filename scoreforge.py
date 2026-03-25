@@ -26,6 +26,7 @@ from core.musicxml_builder import build_musicxml
 from core.renderer import render_musicxml_to_image, get_available_renderer
 from core.comparator import compare_images, ai_compare
 from core.fixer import fix_musicxml
+from core.report import generate_report
 
 console = Console()
 
@@ -39,7 +40,8 @@ console = Console()
 @click.option("--model", default="claude-sonnet-4-5-20250929", help="Claude model for extraction")
 @click.option("--verbose", is_flag=True, help="Verbose output")
 @click.option("--save-intermediates", is_flag=True, help="Save intermediate files")
-def main(input_path, output, validate, max_iterations, threshold, model, verbose, save_intermediates):
+@click.option("--report", "-r", is_flag=True, help="Generate HTML visual comparison report")
+def main(input_path, output, validate, max_iterations, threshold, model, verbose, save_intermediates, report):
     """Convert sheet music to MusicXML."""
     input_path = Path(input_path)
 
@@ -74,7 +76,24 @@ def main(input_path, output, validate, max_iterations, threshold, model, verbose
     _write_file(output, musicxml_content)
     console.print(f"  Written: {output} ({len(musicxml_content):,} bytes)")
 
+    # Track iterations for report
+    report_iterations = []
+
     if not validate:
+        if report:
+            report_iterations.append({
+                "iteration": 1,
+                "musicxml": musicxml_content,
+                "match_score": None,
+                "pixel_diff_pct": None,
+                "note_count": sum(len(m.notes) for p in score.parts for m in p.measures),
+                "measure_count": score.measure_count,
+                "differences": [],
+            })
+            report_path = str(Path(output).with_suffix(".html"))
+            generate_report(str(input_path), report_iterations, report_path,
+                          title=f"ScoreForge: {input_path.name}")
+            console.print(f"\n[bold]Report:[/bold] {report_path}")
         console.print("\n[bold green]Done![/bold green] MusicXML saved without validation.")
         return
 
@@ -114,10 +133,22 @@ def main(input_path, output, validate, max_iterations, threshold, model, verbose
         console.print(f"  Pixel diff: {pixel_result['pixel_diff_pct']}%")
         console.print(f"  Diff regions: {len(pixel_result['diff_regions'])}")
 
+        # Track iteration for report
+        iter_data = {
+            "iteration": iteration,
+            "musicxml": musicxml_content,
+            "match_score": pixel_result["match_score"],
+            "pixel_diff_pct": pixel_result["pixel_diff_pct"],
+            "note_count": sum(len(m.notes) for p in score.parts for m in p.measures),
+            "measure_count": score.measure_count,
+            "differences": [],
+        }
+
         if pixel_result["match_score"] >= threshold:
             console.print(f"\n[bold green]Match score {pixel_result['match_score']} >= {threshold} threshold. Done![/bold green]")
             best_xml = musicxml_content
             best_score = pixel_result["match_score"]
+            report_iterations.append(iter_data)
             break
 
         # AI comparison for detailed diffs
@@ -151,6 +182,9 @@ def main(input_path, output, validate, max_iterations, threshold, model, verbose
             best_score = pixel_result["match_score"]
             best_xml = musicxml_content
 
+        iter_data["differences"] = ai_result["differences"]
+        report_iterations.append(iter_data)
+
         if save_intermediates:
             _write_file(str(work_dir / f"iter_{iteration}_fixed.musicxml"), musicxml_content)
             console.print(f"  Saved intermediate: {work_dir}/iter_{iteration}_fixed.musicxml")
@@ -164,6 +198,13 @@ def main(input_path, output, validate, max_iterations, threshold, model, verbose
     if best_score < threshold:
         console.print(f"\n[yellow]Warning: Best score {best_score} is below threshold {threshold}.[/yellow]")
         console.print("Consider running with more iterations or manually reviewing the output.")
+
+    # Generate HTML report
+    if report:
+        report_path = str(Path(output).with_suffix(".html"))
+        generate_report(str(input_path), report_iterations, report_path,
+                      title=f"ScoreForge: {input_path.name}")
+        console.print(f"  [bold]Visual report:[/bold] {report_path}")
 
     # Cleanup
     if not save_intermediates:

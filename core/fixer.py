@@ -1,7 +1,7 @@
 """AI-powered MusicXML correction based on comparison results."""
 import json
 
-import anthropic
+from core import api
 
 
 FIX_PROMPT = """You are an expert MusicXML editor. Given a MusicXML document and a list of differences found between the original sheet music and the rendered output, produce a corrected MusicXML document.
@@ -37,11 +37,11 @@ def fix_musicxml(musicxml_content: str, differences: list[dict]) -> str:
     if not differences:
         return musicxml_content
 
-    client = anthropic.Anthropic()
+
 
     diff_text = json.dumps(differences, indent=2)
 
-    message = client.messages.create(
+    message = api.create_message(
         model="claude-sonnet-4-5-20250929",
         max_tokens=16000,
         messages=[

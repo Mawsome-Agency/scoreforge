@@ -8,7 +8,7 @@ import numpy as np
 from lxml import etree
 from PIL import Image
 import imagehash
-import anthropic
+from core import api
 
 
 # ============================================================================
@@ -89,7 +89,7 @@ def _find_diff_regions(diff: np.ndarray, threshold: float = 0.3) -> list[dict]:
 
 def ai_compare(original_path: str, rendered_path: str) -> dict:
     """Use Claude Vision to compare original and rendered sheet music."""
-    client = anthropic.Anthropic()
+
 
     def encode(path):
         suffix = Path(path).suffix.lower()
@@ -102,7 +102,7 @@ def ai_compare(original_path: str, rendered_path: str) -> dict:
     orig_data, orig_type = encode(original_path)
     rend_data, rend_type = encode(rendered_path)
 
-    message = client.messages.create(
+    message = api.create_message(
         model="claude-sonnet-4-5-20250929",
         max_tokens=4000,
         messages=[

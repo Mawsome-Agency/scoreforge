@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-import anthropic
+from core import api
 
 from models.score import Score, Part
 from models.measure import Measure, KeySignature, TimeSignature, Clef, Barline
@@ -209,7 +209,7 @@ def extract_from_image(
     Returns:
         Parsed Score object.
     """
-    client = anthropic.Anthropic()
+    # Client managed by core.api with fallback
     image_data, media_type = encode_image(image_path)
 
     image_block = {
@@ -222,17 +222,19 @@ def extract_from_image(
     }
 
     if two_pass:
-        return _extract_two_pass(client, image_block, model, use_thinking)
+        return _extract_two_pass(image_block, model, use_thinking)
     else:
-        return _extract_single_pass(client, image_block, model, use_thinking)
+        return _extract_single_pass(image_block, model, use_thinking)
 
 
 # ---------------------------------------------------------------------------
 # Two-pass extraction (structure first, then details)
 # ---------------------------------------------------------------------------
 
+# Streaming handled by core.api.stream_and_collect
+
+
 def _extract_two_pass(
-    client: anthropic.Anthropic,
     image_block: dict,
     model: str,
     use_thinking: bool,
@@ -240,18 +242,18 @@ def _extract_two_pass(
     """Two-pass extraction: structure first, then note-by-note details."""
 
     # --- Pass 1: Extract structure ---
-    structure_msg = client.messages.create(
-        model=model,
-        max_tokens=4000,
-        messages=[
+    structure_kwargs = {
+        "model": model,
+        "max_tokens": 4000,
+        "messages": [
             {
                 "role": "user",
                 "content": [image_block, {"type": "text", "text": STRUCTURE_PROMPT}],
             }
         ],
-    )
+    }
 
-    structure_text = structure_msg.content[0].text
+    structure_text = api.stream_and_collect(**structure_kwargs)
     structure_json_str = _extract_json_from_response(structure_text)
     structure_data = json.loads(structure_json_str)
 
@@ -281,10 +283,7 @@ def _extract_two_pass(
         # Extended thinking requires higher max_tokens
         api_kwargs["max_tokens"] = 32000
 
-    detail_msg = client.messages.create(**api_kwargs)
-
-    # Extract text content (skip thinking blocks)
-    response_text = _get_text_from_response(detail_msg)
+    response_text = api.stream_and_collect(**api_kwargs)
     json_str = _extract_json_from_response(response_text)
     data = json.loads(json_str)
 
@@ -296,7 +295,6 @@ def _extract_two_pass(
 # ---------------------------------------------------------------------------
 
 def _extract_single_pass(
-    client: anthropic.Anthropic,
     image_block: dict,
     model: str,
     use_thinking: bool,
@@ -327,8 +325,7 @@ def _extract_single_pass(
         }
         api_kwargs["max_tokens"] = 32000
 
-    message = client.messages.create(**api_kwargs)
-    response_text = _get_text_from_response(message)
+    response_text = api.stream_and_collect(**api_kwargs)
     json_str = _extract_json_from_response(response_text)
     data = json.loads(json_str)
 

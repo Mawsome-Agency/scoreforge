@@ -1,0 +1,565 @@
+╭─────────────────────────────── Configuration ────────────────────────────────╮
+│ ScoreForge Iteration Runner                                                  │
+│ Fixtures: 17                                                                 │
+│ Max iterations: 50                                                           │
+│ Threshold: 95.0%                                                             │
+│ Model: claude-sonnet-4-5-20250929                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+============================================================
+Fixture 1/17: annotations
+============================================================
+  Rendering ground truth to PNG...
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 27.3%  |  Pitch: 0.0%  |  Rhythm: 0.0%  |  Notes: 7/8
+  New best score: 27.3%
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 19 issues...
+  Comparing semantically...
+  Overall: 100.0%  |  Pitch: 100.0%  |  Rhythm: 100.0%  |  Notes: 8/8
+  New best score: 100.0%
+  Threshold reached (100.0% >= 95.0%). Stopping.
+
+============================================================
+Fixture 2/17: clef_changes
+============================================================
+  Rendering ground truth to PNG...
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 29.2%  |  Pitch: 16.7%  |  Rhythm: 0.0%  |  Notes: 10/12
+  New best score: 29.2%
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 17 issues...
+  Comparing semantically...
+  Overall: 100.0%  |  Pitch: 100.0%  |  Rhythm: 100.0%  |  Notes: 12/12
+  New best score: 100.0%
+  Threshold reached (100.0% >= 95.0%). Stopping.
+
+============================================================
+Fixture 3/17: complex_rhythm
+============================================================
+  Rendering ground truth to PNG...
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E260 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E260 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E260 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E260 not found in glyph table
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 53.6%  |  Pitch: 33.3%  |  Rhythm: 36.4%  |  Notes: 9/11
+  New best score: 53.6%
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E260 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E261 not found in glyph table
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 19 issues...
+  Comparing semantically...
+  Overall: 100.0%  |  Pitch: 100.0%  |  Rhythm: 100.0%  |  Notes: 11/11
+  New best score: 100.0%
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E260 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E260 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E260 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E260 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E260 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E260 not found in glyph table
+  Threshold reached (100.0% >= 95.0%). Stopping.
+
+============================================================
+Fixture 4/17: dynamics_hairpins
+============================================================
+  Rendering ground truth to PNG...
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 13.0%  |  Pitch: 0.0%  |  Rhythm: 0.0%  |  Notes: 8/12
+  New best score: 13.0%
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 22 issues...
+  Comparing semantically...
+  Overall: 82.8%  |  Pitch: 75.0%  |  Rhythm: 83.3%  |  Notes: 11/12
+  New best score: 82.8%
+
+  --- Iteration 3/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 6 issues...
+  Comparing semantically...
+  Overall: 100.0%  |  Pitch: 100.0%  |  Rhythm: 100.0%  |  Notes: 12/12
+  New best score: 100.0%
+  Threshold reached (100.0% >= 95.0%). Stopping.
+
+============================================================
+Fixture 5/17: full_orchestra
+============================================================
+  Rendering ground truth to PNG...
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 17.0%  |  Pitch: 13.3%  |  Rhythm: 0.0%  |  Notes: 120/120
+  New best score: 17.0%
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 224 issues...
+  Comparing semantically...
+  Overall: 96.3%  |  Pitch: 91.7%  |  Rhythm: 100.0%  |  Notes: 120/120
+  New best score: 96.3%
+  Threshold reached (96.3% >= 95.0%). Stopping.
+
+============================================================
+Fixture 6/17: key_changes
+============================================================
+  Rendering ground truth to PNG...
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 23.3%  |  Pitch: 8.3%  |  Rhythm: 0.0%  |  Notes: 24/24
+  New best score: 23.3%
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 46 issues...
+  Comparing semantically...
+  Overall: 100.0%  |  Pitch: 100.0%  |  Rhythm: 100.0%  |  Notes: 24/24
+  New best score: 100.0%
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+  Threshold reached (100.0% >= 95.0%). Stopping.
+
+============================================================
+Fixture 7/17: lyrics_verses
+============================================================
+  Rendering ground truth to PNG...
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 2/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 3/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 4/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 5/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 6/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 7/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 8/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 9/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 10/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 11/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 12/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 13/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 14/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 15/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 16/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 17/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 18/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 19/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 20/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 21/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 22/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 23/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 24/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 25/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 26/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 27/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 28/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 29/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 30/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 31/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 32/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 33/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 34/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 35/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 36/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 37/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 38/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 39/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 40/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 41/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 42/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 43/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 44/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 45/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 46/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 47/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 48/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 49/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+  --- Iteration 50/50 ---
+  Extracting from image with Claude Vision...
+  Error: Argument must be bytes or unicode, got 'dict'
+
+============================================================
+Fixture 8/17: marching_stickings
+============================================================
+  Rendering ground truth to PNG...
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 20.0%  |  Pitch: 100.0%  |  Rhythm: 0.0%  |  Notes: 16/16
+  New best score: 20.0%
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 16 issues...
+  Comparing semantically...
+  Overall: 100.0%  |  Pitch: 100.0%  |  Rhythm: 100.0%  |  Notes: 16/16
+  New best score: 100.0%
+  Threshold reached (100.0% >= 95.0%). Stopping.
+
+============================================================
+Fixture 9/17: mixed_meters
+============================================================
+  Rendering ground truth to PNG...
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 14.6%  |  Pitch: 23.5%  |  Rhythm: 0.0%  |  Notes: 17/19
+  New best score: 14.6%
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 37 issues...
+  Comparing semantically...
+  Overall: 100.0%  |  Pitch: 100.0%  |  Rhythm: 100.0%  |  Notes: 19/19
+  New best score: 100.0%
+  Threshold reached (100.0% >= 95.0%). Stopping.
+
+============================================================
+Fixture 10/17: multi_voice
+============================================================
+  Rendering ground truth to PNG...
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 10.5%  |  Pitch: 0.0%  |  Rhythm: 0.0%  |  Notes: 16/18
+  New best score: 10.5%
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 34 issues...
+  Comparing semantically...
+  Overall: 100.0%  |  Pitch: 100.0%  |  Rhythm: 100.0%  |  Notes: 18/18
+  New best score: 100.0%
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E260 not found in glyph table
+  Threshold reached (100.0% >= 95.0%). Stopping.
+
+============================================================
+Fixture 11/17: nested_tuplets
+============================================================
+  Rendering ground truth to PNG...
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E261 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E261 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E261 not found in glyph table
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 9.8%  |  Pitch: 4.3%  |  Rhythm: 0.0%  |  Notes: 23/24
+  New best score: 9.8%
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E261 not found in glyph table
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 60 issues...
+  Comparing semantically...
+  Overall: 98.1%  |  Pitch: 100.0%  |  Rhythm: 95.8%  |  Notes: 24/24
+  New best score: 98.1%
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E261 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+[Warning] tie with @xml:id yq9zks3 will not get rendered as it has identical values in @startid and @endid
+[Warning] tie 'yq9zks3' is ignored, since start 'w7g1wd4' does not occur temporally before end 'w7g1wd4'.
+  Threshold reached (98.1% >= 95.0%). Stopping.
+
+============================================================
+Fixture 12/17: ornaments
+============================================================
+  Rendering ground truth to PNG...
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 25.0%  |  Pitch: 0.0%  |  Rhythm: 0.0%  |  Notes: 4/6
+  New best score: 25.0%
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 17 issues...
+  Comparing semantically...
+  Overall: 100.0%  |  Pitch: 100.0%  |  Rhythm: 100.0%  |  Notes: 6/6
+  New best score: 100.0%
+  Threshold reached (100.0% >= 95.0%). Stopping.
+
+============================================================
+Fixture 13/17: piano_chords
+============================================================
+  Rendering ground truth to PNG...
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 20.8%  |  Pitch: 10.0%  |  Rhythm: 20.0%  |  Notes: 20/20
+  New best score: 20.8%
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 38 issues...
+  Comparing semantically...
+  Overall: 100.0%  |  Pitch: 100.0%  |  Rhythm: 100.0%  |  Notes: 20/20
+  New best score: 100.0%
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+  Threshold reached (100.0% >= 95.0%). Stopping.
+
+============================================================
+Fixture 14/17: repeats_codas
+============================================================
+  Rendering ground truth to PNG...
+[Warning] MusicXML import: Unsupported bar-style 'heavy-light'
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 31.8%  |  Pitch: 0.0%  |  Rhythm: 0.0%  |  Notes: 7/8
+  New best score: 31.8%
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 15 issues...
+  Comparing semantically...
+  Overall: 100.0%  |  Pitch: 100.0%  |  Rhythm: 100.0%  |  Notes: 8/8
+  New best score: 100.0%
+  Threshold reached (100.0% >= 95.0%). Stopping.
+
+============================================================
+Fixture 15/17: simple_melody
+============================================================
+  Rendering ground truth to PNG...
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 50.0%  |  Pitch: 5.3%  |  Rhythm: 52.2%  |  Notes: 19/23
+  New best score: 50.0%
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 38 issues...
+  Comparing semantically...
+  Overall: 62.9%  |  Pitch: 100.0%  |  Rhythm: 0.0%  |  Notes: 23/23
+  New best score: 62.9%
+
+  --- Iteration 3/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 23 issues...
+  Comparing semantically...
+  Overall: 100.0%  |  Pitch: 100.0%  |  Rhythm: 100.0%  |  Notes: 23/23
+  New best score: 100.0%
+  Threshold reached (100.0% >= 95.0%). Stopping.
+
+============================================================
+Fixture 16/17: solo_with_accompaniment
+============================================================
+  Rendering ground truth to PNG...
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...

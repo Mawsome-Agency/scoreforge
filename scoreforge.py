@@ -8,6 +8,9 @@ Usage:
 import json
 import os
 import sys
+
+from dotenv import load_dotenv
+load_dotenv()
 import tempfile
 import time
 from pathlib import Path

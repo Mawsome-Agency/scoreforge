@@ -18,7 +18,9 @@ from models.note import Note, NoteType, Pitch, Accidental
 
 STRUCTURE_PROMPT = """You are an expert music notation reader. Analyze this sheet music image and extract the HIGH-LEVEL STRUCTURE first.
 
-Output a JSON object with this structure:
+Output ONLY a valid JSON object — no explanation, no preamble, no markdown fences. Start your response with `{` and end with `}`.
+
+Use this exact structure:
 {
   "title": "string or null",
   "composer": "string or null",
@@ -41,10 +43,13 @@ RULES:
 - For piano/keyboard: staves=2 (treble + bass).
 - Key signature fifths: negative=flats, positive=sharps (-2 = Bb major, 1 = G major, etc.)
 - If there are multiple pages visible, set page_count_estimate accordingly.
-- This is ONLY the structure pass. Do not extract individual notes yet."""
+- This is ONLY the structure pass. Do not extract individual notes yet.
+- YOUR ENTIRE RESPONSE MUST BE VALID JSON. No other text."""
 
 
 DETAIL_PROMPT = """You are an expert music notation reader performing a DETAILED note-by-note extraction.
+
+IMPORTANT: Output ONLY a valid JSON object. No explanation, no preamble, no markdown fences, no trailing text. Start your response with `{{` and end with `}}`.
 
 The score structure has already been identified:
 {structure_json}
@@ -145,7 +150,9 @@ FINAL SELF-CHECK: After completing extraction, verify:
 - Total measure count matches what you see in the image
 - Each measure's note durations sum to the time signature
 - No notes are missing from any measure
-- Pitches are correct relative to the clef and key signature"""
+- Pitches are correct relative to the clef and key signature
+
+REMINDER: Your entire response must be a single valid JSON object. Do NOT include any text before `{{` or after the final `}}`."""
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +201,7 @@ def encode_pdf_pages(pdf_path: str) -> list[tuple[str, str]]:
 
 def extract_from_image(
     image_path: str,
-    model: str = "claude-sonnet-4-5-20250929",
+    model: str = "claude-sonnet-4-6",
     use_thinking: bool = True,
     two_pass: bool = True,
 ) -> Score:
@@ -338,7 +345,7 @@ def _extract_single_pass(
 
 def _model_supports_thinking(model: str) -> bool:
     """Check if the model supports extended thinking."""
-    thinking_models = ["claude-sonnet-4-5", "claude-3-7-sonnet"]
+    thinking_models = ["claude-sonnet-4-5", "claude-sonnet-4-6", "claude-3-7-sonnet"]
     return any(m in model for m in thinking_models)
 
 
@@ -352,12 +359,57 @@ def _get_text_from_response(message) -> str:
 
 
 def _extract_json_from_response(text: str) -> str:
-    """Extract JSON from a response that may be wrapped in markdown code blocks."""
-    if "```json" in text:
-        return text.split("```json")[1].split("```")[0].strip()
-    elif "```" in text:
-        return text.split("```")[1].split("```")[0].strip()
-    return text.strip()
+    """Extract JSON from a response that may have preamble text or markdown fences.
+
+    Strategy (in order):
+    1. Strip markdown fences (```json ... ``` or ``` ... ```)
+    2. Find the outermost { } or [ ] by bracket scanning (handles preamble/postamble)
+    3. Fall back to the raw stripped text
+    """
+    stripped = text.strip()
+
+    # 1. Markdown fence extraction
+    if "```json" in stripped:
+        candidate = stripped.split("```json")[1].split("```")[0].strip()
+        if candidate:
+            return candidate
+    if "```" in stripped:
+        candidate = stripped.split("```")[1].split("```")[0].strip()
+        if candidate:
+            return candidate
+
+    # 2. Bracket scan: find first { or [ and its matching closer
+    for start_char, end_char in [('{', '}'), ('[', ']')]:
+        start_idx = stripped.find(start_char)
+        if start_idx == -1:
+            continue
+        depth = 0
+        in_string = False
+        escape_next = False
+        for i in range(start_idx, len(stripped)):
+            ch = stripped[i]
+            if escape_next:
+                escape_next = False
+                continue
+            if ch == '\\' and in_string:
+                escape_next = True
+                continue
+            if ch == '"' and not escape_next:
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch == start_char:
+                depth += 1
+            elif ch == end_char:
+                depth -= 1
+                if depth == 0:
+                    return stripped[start_idx:i + 1]
+        # If we reach here without finding the closer, return from start to end
+        return stripped[start_idx:]
+
+    # 3. Raw fallback
+    return stripped
 
 
 # ---------------------------------------------------------------------------

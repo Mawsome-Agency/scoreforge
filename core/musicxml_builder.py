@@ -193,8 +193,14 @@ def _build_note(parent: etree._Element, note: Note):
         dynamics = etree.SubElement(direction_type, "dynamics")
         etree.SubElement(dynamics, note.dynamic)
 
-    # Lyrics
-    for i, lyric_text in enumerate(note.lyrics):
+    # Lyrics — Claude may return strings or dicts like {"text": "...", "syllabic": "..."}
+    for i, lyric_item in enumerate(note.lyrics):
+        if isinstance(lyric_item, dict):
+            lyric_text = lyric_item.get("text") or lyric_item.get("syllable") or str(lyric_item)
+            syllabic = lyric_item.get("syllabic", "single")
+        else:
+            lyric_text = str(lyric_item) if lyric_item is not None else ""
+            syllabic = "single"
         lyric = etree.SubElement(n_elem, "lyric", number=str(i + 1))
-        etree.SubElement(lyric, "syllabic").text = "single"
+        etree.SubElement(lyric, "syllabic").text = syllabic
         etree.SubElement(lyric, "text").text = lyric_text

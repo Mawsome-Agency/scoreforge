@@ -37,6 +37,7 @@ from core.musicxml_builder import build_musicxml
 console = Console()
 
 FIXTURE_DIR = Path(__file__).parent / "tests" / "fixtures"
+CORPUS_DIR = Path(__file__).parent / "corpus" / "originals"
 RESULTS_DIR = Path(__file__).parent / "results"
 
 
@@ -109,9 +110,68 @@ class TestResult:
     matched_note_count: int = 0
 
 
+@dataclass
+class CorpusResult:
+    """Result from testing extraction on a real-world corpus PDF (no GT MusicXML)."""
+    name: str
+    passed: bool       # True = extraction + build succeeded without error
+    extract_ok: bool = False
+    build_ok: bool = False
+    note_count: int = 0
+    measure_count: int = 0
+    error: Optional[str] = None
+    duration_seconds: float = 0.0
+
+
 # ---------------------------------------------------------------------------
 # Harness runner
 # ---------------------------------------------------------------------------
+
+def discover_corpus_pdfs() -> list[Path]:
+    """Discover all PDF files in the corpus directory."""
+    pdfs = []
+    if CORPUS_DIR.exists():
+        for pdf in sorted(CORPUS_DIR.rglob("*.pdf")):
+            pdfs.append(pdf)
+    return pdfs
+
+
+def run_corpus_pdf(
+    pdf_path: Path,
+    model: str = "claude-sonnet-4-6",
+) -> CorpusResult:
+    """Test extraction on a real-world corpus PDF (no GT — parse success only).
+
+    Passes if extraction and MusicXML build complete without exception.
+    """
+    import time
+    start_time = time.time()
+    result = CorpusResult(name=pdf_path.stem, passed=False)
+
+    try:
+        score = extract_from_image(str(pdf_path), model=model)
+        result.extract_ok = True
+        result.note_count = sum(len(m.notes) for p in score.parts for m in p.measures)
+        result.measure_count = sum(len(p.measures) for p in score.parts)
+    except Exception as e:
+        result.error = f"Extraction failed: {e}"
+        result.duration_seconds = time.time() - start_time
+        return result
+
+    try:
+        work_dir = RESULTS_DIR / "corpus" / pdf_path.stem
+        work_dir.mkdir(parents=True, exist_ok=True)
+        musicxml_content = build_musicxml(score)
+        out_path = work_dir / "extracted.musicxml"
+        out_path.write_text(musicxml_content, encoding="utf-8")
+        result.build_ok = True
+        result.passed = True
+    except Exception as e:
+        result.error = f"Build failed: {e}"
+
+    result.duration_seconds = time.time() - start_time
+    return result
+
 
 def discover_fixtures() -> list[TestCase]:
     """Discover all MusicXML fixtures in the fixture directory."""
@@ -136,7 +196,7 @@ def discover_fixtures() -> list[TestCase]:
 
 def run_test(
     test: TestCase,
-    model: str = "claude-sonnet-4-5-20250929",
+    model: str = "claude-sonnet-4-6",
     skip_api: bool = False,
     work_dir: Optional[Path] = None,
 ) -> TestResult:
@@ -232,7 +292,7 @@ def run_test(
 
 def run_all_tests(
     tests: list[TestCase],
-    model: str = "claude-sonnet-4-5-20250929",
+    model: str = "claude-sonnet-4-6",
     skip_api: bool = False,
 ) -> list[TestResult]:
     """Run all test cases and return results."""
@@ -256,6 +316,44 @@ def run_all_tests(
             console.print(f"  [bold yellow]FAILED[/bold yellow] (overall: {result.scores.get('overall', 0)}%)")
 
     return results
+
+
+def print_corpus_report(corpus_results: list[CorpusResult]):
+    """Print corpus PDF test summary."""
+    console.print("\n")
+    console.print(Panel("[bold]Corpus PDF Parse Results[/bold]", expand=False))
+
+    table = Table(title="Real-World PDF Extraction")
+    table.add_column("PDF", style="bold")
+    table.add_column("Status")
+    table.add_column("Notes", justify="right")
+    table.add_column("Measures", justify="right")
+    table.add_column("Time", justify="right")
+    table.add_column("Error")
+
+    for r in corpus_results:
+        status = "[green]PASS[/green]" if r.passed else "[red]FAIL[/red]"
+        error_text = (r.error or "")[:60] if r.error else ""
+        table.add_row(
+            r.name,
+            status,
+            str(r.note_count) if r.extract_ok else "-",
+            str(r.measure_count) if r.extract_ok else "-",
+            f"{r.duration_seconds:.1f}s",
+            error_text,
+        )
+
+    console.print(table)
+
+    total = len(corpus_results)
+    passed = sum(1 for r in corpus_results if r.passed)
+    pct = passed / total * 100 if total else 0
+    gate = "≥70%"
+    gate_ok = pct >= 70
+    gate_str = "[green]PASS[/green]" if gate_ok else "[red]FAIL[/red]"
+    console.print(f"\n  Corpus: {passed}/{total} parsed ({pct:.0f}%)  BUILD gate ({gate}): {gate_str}")
+
+    return passed, total, pct
 
 
 def print_report(results: list[TestResult]):
@@ -338,10 +436,12 @@ def print_report(results: list[TestResult]):
 
 @click.command()
 @click.option("--fixture", "-f", default=None, help="Run only this fixture (by name)")
-@click.option("--model", "-m", default="claude-sonnet-4-5-20250929", help="Claude model")
+@click.option("--model", "-m", default="claude-sonnet-4-6", help="Claude model")
 @click.option("--no-api", is_flag=True, help="Skip API calls (test rendering/infra only)")
 @click.option("--list-fixtures", is_flag=True, help="List available fixtures and exit")
-def main(fixture, model, no_api, list_fixtures):
+@click.option("--corpus", is_flag=True, help="Also run corpus PDF parse tests")
+@click.option("--corpus-only", is_flag=True, help="Run ONLY corpus PDF parse tests")
+def main(fixture, model, no_api, list_fixtures, corpus, corpus_only):
     """Run the ScoreForge test harness."""
     tests = discover_fixtures()
 
@@ -351,6 +451,11 @@ def main(fixture, model, no_api, list_fixtures):
             exists = Path(t.musicxml_path).exists()
             status = "[green]OK[/green]" if exists else "[red]MISSING[/red]"
             console.print(f"  {status} {t.name}: {t.description}")
+        pdfs = discover_corpus_pdfs()
+        if pdfs:
+            console.print(f"\n[bold]Corpus PDFs ({len(pdfs)}):[/bold]")
+            for p in pdfs:
+                console.print(f"  {p.stem}: {p}")
         return
 
     if fixture:
@@ -359,16 +464,62 @@ def main(fixture, model, no_api, list_fixtures):
             console.print(f"[red]Fixture '{fixture}' not found.[/red]")
             sys.exit(1)
 
+    corpus_pdfs = discover_corpus_pdfs() if (corpus or corpus_only) else []
+
     console.print(Panel(
         f"[bold]ScoreForge Test Harness[/bold]\n"
-        f"Fixtures: {len(tests)}\n"
+        f"Fixtures: {0 if corpus_only else len(tests)}\n"
+        f"Corpus PDFs: {len(corpus_pdfs)}\n"
         f"Model: {model}\n"
         f"API calls: {'disabled' if no_api else 'enabled'}",
         title="Configuration",
     ))
 
-    results = run_all_tests(tests, model=model, skip_api=no_api)
-    print_report(results)
+    results = []
+    if not corpus_only:
+        results = run_all_tests(tests, model=model, skip_api=no_api)
+        print_report(results)
+
+    corpus_results = []
+    if corpus_pdfs and not no_api:
+        console.print(f"\n[bold cyan]Running corpus PDF tests ({len(corpus_pdfs)} PDFs)...[/bold cyan]")
+        for i, pdf_path in enumerate(corpus_pdfs, 1):
+            console.print(f"\n[bold cyan]Corpus {i}/{len(corpus_pdfs)}:[/bold cyan] {pdf_path.name}")
+            cr = run_corpus_pdf(pdf_path, model=model)
+            corpus_results.append(cr)
+            if cr.passed:
+                console.print(f"  [green]PASS[/green] — {cr.note_count} notes, {cr.measure_count} measures ({cr.duration_seconds:.1f}s)")
+            else:
+                console.print(f"  [red]FAIL[/red] — {cr.error}")
+
+        passed_corpus, total_corpus, pct_corpus = print_corpus_report(corpus_results)
+
+        # Save corpus results to JSON
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        corpus_report = {
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "total": total_corpus,
+            "passed": passed_corpus,
+            "parse_success_rate_pct": round(pct_corpus, 1),
+            "build_gate_70pct": pct_corpus >= 70,
+            "results": [
+                {
+                    "name": r.name,
+                    "passed": r.passed,
+                    "extract_ok": r.extract_ok,
+                    "build_ok": r.build_ok,
+                    "note_count": r.note_count,
+                    "measure_count": r.measure_count,
+                    "duration_seconds": r.duration_seconds,
+                    "error": r.error,
+                }
+                for r in corpus_results
+            ],
+        }
+        corpus_report_path = RESULTS_DIR / "corpus_report.json"
+        with open(corpus_report_path, "w") as f:
+            json.dump(corpus_report, f, indent=2)
+        console.print(f"\n  Corpus report saved to: {corpus_report_path}")
 
 
 if __name__ == "__main__":

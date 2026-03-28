@@ -87,6 +87,14 @@ def _is_rate_limit_error(e: Exception) -> bool:
     return any(s in text for s in ['429', 'rate limit', 'usage limit'])
 
 
+def _is_auth_error(e: Exception) -> bool:
+    """Check if an exception is an authentication error (try next provider)."""
+    if isinstance(e, anthropic.AuthenticationError):
+        return True
+    text = str(e).lower()
+    return any(s in text for s in ['401', 'authentication_error', 'invalid x-api-key', 'invalid api key'])
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -102,9 +110,12 @@ def create_message(**kwargs) -> anthropic.types.Message:
                 continue
             try:
                 return client.messages.create(**kwargs)
-            except (anthropic.RateLimitError, anthropic.APIStatusError) as e:
+            except (anthropic.RateLimitError, anthropic.AuthenticationError, anthropic.APIStatusError) as e:
                 if _is_rate_limit_error(e):
                     _mark_rate_limited(name, e)
+                    continue
+                if _is_auth_error(e):
+                    print(f"[ScoreForge API] Provider '{name}' auth failed, trying next provider.", flush=True)
                     continue
                 raise
 
@@ -135,9 +146,12 @@ def stream_and_collect(**kwargs) -> str:
                     for text in stream.text_stream:
                         full_text += text
                 return full_text
-            except (anthropic.RateLimitError, anthropic.APIStatusError) as e:
+            except (anthropic.RateLimitError, anthropic.AuthenticationError, anthropic.APIStatusError) as e:
                 if _is_rate_limit_error(e):
                     _mark_rate_limited(name, e)
+                    continue
+                if _is_auth_error(e):
+                    print(f"[ScoreForge API] Provider '{name}' auth failed, trying next provider.", flush=True)
                     continue
                 raise
 

@@ -207,18 +207,23 @@ def _build_note(parent: etree._Element, note: Note):
     # Lyrics — Claude may return strings or dicts like {"text": "...", "syllabic": "..."}
     for i, lyric_item in enumerate(note.lyrics):
         if isinstance(lyric_item, dict):
-            # Extract text value - handle nested structures by getting string values
+            # Extract text value - handle nested/non-string structures defensively
             text_val = lyric_item.get("text")
-            if isinstance(text_val, dict):
+            if text_val is None:
+                # Fall back to "syllable" key (alternate spelling used by some models)
+                fallback = lyric_item.get("syllable")
+                # Fallback value may itself be a dict or non-string — coerce to str
+                text_val = str(fallback) if fallback is not None else ""
+            elif not isinstance(text_val, str):
+                # Handles nested dicts (e.g. {"en": "hello"}) and integers
                 text_val = str(text_val)
-            elif text_val is None:
-                text_val = lyric_item.get("syllable") or ""
             lyric_text = text_val
-            # Extract syllabic value - ensure it's always a string
+            # Extract syllabic value - ensure it's always a plain string
             syllabic_val = lyric_item.get("syllabic")
-            if isinstance(syllabic_val, dict):
-                syllabic_val = str(syllabic_val)
-            syllabic = syllabic_val if syllabic_val else "single"
+            if syllabic_val is None or not isinstance(syllabic_val, str):
+                syllabic = str(syllabic_val) if syllabic_val is not None else "single"
+            else:
+                syllabic = syllabic_val
         else:
             lyric_text = str(lyric_item) if lyric_item is not None else ""
             syllabic = "single"

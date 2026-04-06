@@ -70,10 +70,11 @@ Output a JSON object with this exact structure:
           "time_signature": {{"beats": 4, "beat_type": 4}} or null,
           "key_signature": {{"fifths": 0, "mode": "major"}} or null,
           "clef": {{"sign": "G", "line": 2}} or null,
-          "divisions": 1,
+          "divisions": 10080,
           "notes": [
             {{
               "type": "quarter",
+              "duration": 10080,
               "is_rest": false,
               "pitch": {{"step": "C", "octave": 4, "alter": 0}},
               "accidental": null,
@@ -103,46 +104,111 @@ Output a JSON object with this exact structure:
 
 CRITICAL RULES — READ CAREFULLY:
 
+0. DIVISIONS SELECTION:
+   - Set divisions=10080 if ANY tuplets are visible (triplet, quintuplet, sextuplet brackets or numerals 3,5,6,7,8)
+   - Set divisions=1 ONLY for scores WITHOUT any tuplets (simple quarter/eighth notes)
+   - divisions=10080 handles ALL common tuplet ratios without fractions
+
 1. COMPLETENESS: Extract EVERY note, rest, and marking. Missing even one note is a failure.
 
-2. DURATION MATH — SELF-VERIFICATION REQUIRED:
-   - "divisions" = number of divisions per quarter note.
-   - In each measure, the sum of non-chord note durations MUST equal:
-     (time_signature.beats / time_signature.beat_type) * 4 * divisions
-   - Example: 4/4 with divisions=1 => total = 4. 6/8 with divisions=2 => total = 6.
-   - For EACH measure, after writing it, mentally verify: do the note durations sum correctly?
-   - If they don't, fix them before moving on.
+2. DURATION CALCULATION — EXACT FORMULAS REQUIRED:
 
-3. PITCH ACCURACY:
+   A. DIVISIONS VALUE:
+      - Use divisions=10080 for scores with tuplets (handles 2,3,4,5,6,7,8 note tuplets cleanly)
+      - Use divisions=1 for simple scores without tuplets
+      - divisions = number of units in a quarter note
+
+   B. NOTE DURATION FORMULA (WITHOUT tuplets):
+      duration = divisions * (note_type_multiplier)
+      where note_type_multiplier:
+        - whole = 4
+        - half = 2
+        - quarter = 1
+        - eighth = 0.5
+        - 16th = 0.25
+        - 32nd = 0.125
+        - 64th = 0.0625
+
+      With dots: multiply by (1 + 0.5 * dot_count)
+      Example (divisions=10080):
+        - Quarter: 10080 * 1 = 10080
+        - Dotted quarter: 10080 * 1 * 1.5 = 15120
+        - Eighth: 10080 * 0.5 = 5040
+        - 16th: 10080 * 0.25 = 2520
+        - Half: 10080 * 2 = 20160
+        - Dotted 16th: 10080 * 0.25 * 1.5 = 3780
+
+   C. TUPLET DURATION CALCULATION (CRITICAL FOR NESTED TUPLETS):
+
+      For a note in a tuplet:
+        duration = normal_duration * (normal_notes / actual_notes)
+
+      where:
+        - normal_duration = duration WITHOUT tuplet (using formula B above)
+        - actual_notes = number of notes in the tuplet bracket (e.g., 3 for triplet)
+        - normal_notes = number of notes the tuplet replaces
+
+      Examples (divisions=10080):
+
+      1. Simple triplet (3 in the time of 2 eighths):
+         - Each note type: eighth (normal = 5040)
+         - actual_notes = 3, normal_notes = 2
+         - duration = 5040 * (2/3) = 3360
+
+      2. Quintuplet of quarters (5 in the time of 4 quarters):
+         - Each note type: quarter (normal = 10080)
+         - actual_notes = 5, normal_notes = 4
+         - duration = 10080 * (4/5) = 8064
+
+      3. Nested tuplet example (triplet of eighths within quintuplet of quarters):
+         - Inner level: triplet (3 eighths in time of 2)
+         - Each eighth: 5040 * (2/3) = 3360
+         - Outer level: now these 3360-duration notes are part of quintuplet
+         - actual_notes = 5, normal_notes = 4
+         - duration = 3360 * (4/5) = 2688
+
+      4. Sextuplet of eighths (6 in the time of 4 eighths):
+         - Each note type: eighth (normal = 5040)
+         - actual_notes = 6, normal_notes = 4
+         - duration = 5040 * (4/6) = 3360
+
+   D. SELF-VERIFICATION:
+      - After extracting each measure, sum all non-chord note durations
+      - Sum MUST equal: (beats / beat_type) * 4 * divisions
+      - Example: 4/4 with divisions=10080 => total = 4 * 10080 = 40320
+      - Example: 6/8 with divisions=5040 => total = 6 * 5040 = 30240
+      - If sum doesn't match, recalculate durations before proceeding
+
+4. PITCH ACCURACY:
    - Middle C = C4. The treble clef (G clef, line 2) places G4 on the second line.
    - Bass clef (F clef, line 4) places F3 on the fourth line.
    - Count lines and spaces carefully from the clef reference point.
    - Remember key signature accidentals apply to ALL octaves of that note unless cancelled by a natural.
 
-4. KEY/TIME/CLEF RULES:
+5. KEY/TIME/CLEF RULES:
    - First measure MUST include time_signature, key_signature, and clef.
    - Subsequent measures: include these ONLY when they CHANGE.
 
-5. CHORD NOTATION:
+6. CHORD NOTATION:
    - First note in a chord: is_chord = false
    - Additional stacked notes: is_chord = true (same duration, share the beat)
 
-6. MULTI-STAFF (Piano):
+7. MULTI-STAFF (Piano):
    - staves = 2
    - staff = 1 for treble, staff = 2 for bass
    - Use voice = 1 for treble staff notes, voice = 2 for bass staff notes
 
-7. NOTE TYPES: "whole", "half", "quarter", "eighth", "16th", "32nd", "64th"
+8. NOTE TYPES: "whole", "half", "quarter", "eighth", "16th", "32nd", "64th"
 
-8. ACCIDENTALS: "sharp", "flat", "natural", "double-sharp", "double-flat"
+9. ACCIDENTALS: "sharp", "flat", "natural", "double-sharp", "double-flat"
    - Set "alter" in pitch: -1 for flat, 1 for sharp, 0 for natural, -2 for double-flat, 2 for double-sharp
    - Set "accidental" string only when the accidental is PRINTED on the note (not implied by key sig)
 
-9. BEAMS: "begin", "continue", "end" — for grouped eighth/sixteenth notes
+10. BEAMS: "begin", "continue", "end" — for grouped eighth/sixteenth notes
 
-10. BARLINES: null for normal, {{"style": "light-heavy"}} for final, {{"style": "light-light"}} for double
+11. BARLINES: null for normal, {{"style": "light-heavy"}} for final, {{"style": "light-light"}} for double
 
-11. TIES: A curved line connecting two notes of the SAME pitch across beats or barlines.
+12. TIES: A curved line connecting two notes of the SAME pitch across beats or barlines.
     - First note: tie_start = true
     - Second note: tie_stop = true
 

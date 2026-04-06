@@ -159,7 +159,9 @@ def _build_note(parent: etree._Element, note: Note):
     # Beam
     if note.beam:
         beam_elem = etree.SubElement(n_elem, "beam", number="1")
-        beam_elem.text = note.beam
+        # Defensive: ensure beam value is a string
+        beam_val = note.beam if isinstance(note.beam, str) else str(note.beam)
+        beam_elem.text = beam_val
 
     # Notations
     has_notations = any([
@@ -191,13 +193,32 @@ def _build_note(parent: etree._Element, note: Note):
         direction = etree.SubElement(parent, "direction", placement="below")
         direction_type = etree.SubElement(direction, "direction-type")
         dynamics = etree.SubElement(direction_type, "dynamics")
-        etree.SubElement(dynamics, note.dynamic)
+        # Defensive: extract actual value from dict, or use string directly
+        if isinstance(note.dynamic, dict):
+            # Try common dict keys for dynamic values
+            dynamic_val = (note.dynamic.get("level") or
+                          note.dynamic.get("value") or
+                          note.dynamic.get("type") or
+                          str(note.dynamic))
+        else:
+            dynamic_val = note.dynamic
+        etree.SubElement(dynamics, str(dynamic_val))
 
     # Lyrics — Claude may return strings or dicts like {"text": "...", "syllabic": "..."}
     for i, lyric_item in enumerate(note.lyrics):
         if isinstance(lyric_item, dict):
-            lyric_text = lyric_item.get("text") or lyric_item.get("syllable") or str(lyric_item)
-            syllabic = lyric_item.get("syllabic", "single")
+            # Extract text value - handle nested structures by getting string values
+            text_val = lyric_item.get("text")
+            if isinstance(text_val, dict):
+                text_val = str(text_val)
+            elif text_val is None:
+                text_val = lyric_item.get("syllable") or ""
+            lyric_text = text_val
+            # Extract syllabic value - ensure it's always a string
+            syllabic_val = lyric_item.get("syllabic")
+            if isinstance(syllabic_val, dict):
+                syllabic_val = str(syllabic_val)
+            syllabic = syllabic_val if syllabic_val else "single"
         else:
             lyric_text = str(lyric_item) if lyric_item is not None else ""
             syllabic = "single"

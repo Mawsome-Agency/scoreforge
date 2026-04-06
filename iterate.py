@@ -36,6 +36,7 @@ from core.comparator import compare_musicxml_semantic, compare_images
 from core.extractor import extract_from_image
 from core.musicxml_builder import build_musicxml
 from core.fixer import fix_musicxml
+from core.range_validator import find_out_of_range_notes, format_range_hint
 
 console = Console()
 
@@ -98,6 +99,18 @@ def iterate_fixture(
                 # First iteration: extract from scratch
                 console.print(f"  Extracting from image with Claude Vision...")
                 score = extract_from_image(gt_png, model=model)
+
+                # Check for out-of-range pitches immediately after extraction
+                range_violations = find_out_of_range_notes(score)
+                if range_violations:
+                    console.print(
+                        f"  [yellow]Range violations detected ({len(range_violations)} notes): "
+                        + ", ".join(f"{v['part_name']} m{v['measure']} {v['pitch_str']}"
+                                    for v in range_violations[:6])
+                        + ("[...]" if len(range_violations) > 6 else "")
+                        + "[/yellow]"
+                    )
+
                 current_xml_content = build_musicxml(score)
             else:
                 # Subsequent iterations: apply fixes based on previous comparison
@@ -105,9 +118,22 @@ def iterate_fixture(
                 prev_comparison = iterations[-1].get("comparison", {})
                 diffs_to_fix = _extract_fix_instructions(prev_comparison)
 
-                if diffs_to_fix:
-                    console.print(f"  Fixing {len(diffs_to_fix)} issues...")
-                    current_xml_content = fix_musicxml(current_xml_content, diffs_to_fix)
+                # Collect range-violation hints from the previous iteration's score
+                prev_range_hints = iterations[-1].get("range_hints", [])
+
+                if diffs_to_fix or prev_range_hints:
+                    n_diffs = len(diffs_to_fix)
+                    n_hints = len(prev_range_hints)
+                    console.print(
+                        f"  Fixing {n_diffs} diffs"
+                        + (f" + {n_hints} range hints" if n_hints else "")
+                        + "..."
+                    )
+                    current_xml_content = fix_musicxml(
+                        current_xml_content,
+                        diffs_to_fix,
+                        range_hints=prev_range_hints if prev_range_hints else None,
+                    )
                 else:
                     console.print(f"  [yellow]No specific diffs to fix. Re-extracting...[/yellow]")
                     score = extract_from_image(gt_png, model=model)
@@ -125,6 +151,74 @@ def iterate_fixture(
             iter_result["total_notes_gt"] = comparison["total_notes_gt"]
             iter_result["total_notes_matched"] = comparison["total_notes_matched"]
             iter_result["comparison"] = comparison
+
+            # Run range validation on the extracted XML so the NEXT iteration's
+            # fixer can include targeted ledger-line recounting guidance.
+            try:
+                from core.range_validator import find_out_of_range_notes as _find_oor, format_range_hint as _fmt_hint
+                from core.extractor import _build_score, _extract_json_from_response
+                import xml.etree.ElementTree as _ET
+
+                # Re-parse the extracted XML into a Score for range checking
+                # We use the comparator's parse path (XML file already on disk)
+                # Quick approach: build a minimal score from the XML part names + notes
+                _tree = _ET.parse(extracted_xml_path)
+                _root = _tree.getroot()
+                _ns = (_root.tag.split("}")[0] + "}") if _root.tag.startswith("{") else ""
+                _part_names = {}
+                _plist = _root.find(f"{_ns}part-list")
+                if _plist is not None:
+                    for _sp in _plist.findall(f"{_ns}score-part"):
+                        _pid = _sp.get("id", "")
+                        _ne = _sp.find(f"{_ns}part-name")
+                        _part_names[_pid] = _ne.text if _ne is not None and _ne.text else _pid
+
+                # Build lightweight Score-like proxy for range validation
+                from models.score import Score as _Score, Part as _Part
+                from models.measure import Measure as _Measure
+                from models.note import Note as _Note, Pitch as _Pitch
+
+                _proxy_score = _Score()
+                for _part_el in _root.findall(f"{_ns}part"):
+                    _pid = _part_el.get("id", "")
+                    _part = _Part(id=_pid, name=_part_names.get(_pid, _pid))
+                    for _m_el in _part_el.findall(f"{_ns}measure"):
+                        _m_num = int(_m_el.get("number", "1"))
+                        _measure = _Measure(number=_m_num)
+                        for _n_el in _m_el.findall(f"{_ns}note"):
+                            _rest_el = _n_el.find(f"{_ns}rest")
+                            if _rest_el is not None:
+                                continue
+                            _p_el = _n_el.find(f"{_ns}pitch")
+                            if _p_el is None:
+                                continue
+                            _step_el = _p_el.find(f"{_ns}step")
+                            _oct_el = _p_el.find(f"{_ns}octave")
+                            _alt_el = _p_el.find(f"{_ns}alter")
+                            if _step_el is None or _oct_el is None:
+                                continue
+                            _pitch = _Pitch(
+                                step=_step_el.text,
+                                octave=int(_oct_el.text),
+                                alter=float(_alt_el.text) if _alt_el is not None and _alt_el.text else 0,
+                            )
+                            _measure.notes.append(_Note(duration=1, pitch=_pitch))
+                        _part.measures.append(_measure)
+                    _proxy_score.parts.append(_part)
+
+                _violations = _find_oor(_proxy_score)
+                _range_hints = [_fmt_hint(v) for v in _violations]
+                iter_result["range_hints"] = _range_hints
+                iter_result["range_violation_count"] = len(_violations)
+
+                if _violations:
+                    console.print(
+                        f"  [yellow]Range violations: {len(_violations)} notes out of instrument range[/yellow]"
+                    )
+            except Exception as _rve:
+                iter_result["range_hints"] = []
+                iter_result["range_violation_count"] = 0
+                console.print(f"  [dim]Range validation skipped: {_rve}[/dim]")
 
             overall = comparison["scores"].get("overall", 0)
             console.print(f"  Overall: {overall:.1f}%  |  "

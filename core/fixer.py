@@ -23,8 +23,32 @@ RULES:
 
 Output ONLY the corrected XML, wrapped in ```xml ... ``` tags. No explanations."""
 
+FIX_PROMPT_RANGE_ADDENDUM = """
+INSTRUMENT RANGE VIOLATIONS DETECTED:
+The following pitches are outside the instrument's standard playable range.
+These are almost certainly ledger-line miscounts, not real pitches.
+For each violation, recount staff positions carefully using the reference points below.
 
-def fix_musicxml(musicxml_content: str, differences: list[dict]) -> str:
+{range_hints}
+
+LEDGER LINE REFERENCE:
+  TREBLE CLEF above staff:
+    F5 = top staff line  |  G5 = space above top line (NO ledger)
+    A5 = 1st ledger line above staff  |  B5 = space above 1st ledger  |  C6 = 2nd ledger
+  BASS CLEF near bottom:
+    G2 = bottom staff line  |  A2 = 1st space  |  B2 = 2nd line
+    F2 = space below bottom line  |  E2 = 1st ledger below staff
+
+  KEY RULE: Accidentals (sharp/flat) change ALTER only — never the staff-position letter.
+  G# is step="G" alter=1. Bb is step="B" alter=-1. They do NOT occupy different line/space positions.
+"""
+
+
+def fix_musicxml(
+    musicxml_content: str,
+    differences: list[dict],
+    range_hints: list[str] | None = None,
+) -> str:
     """Apply AI-driven fixes to MusicXML based on detected differences.
 
     Args:
@@ -34,12 +58,19 @@ def fix_musicxml(musicxml_content: str, differences: list[dict]) -> str:
     Returns:
         Corrected MusicXML string
     """
-    if not differences:
+    if not differences and not range_hints:
         return musicxml_content
 
-
-
     diff_text = json.dumps(differences, indent=2)
+
+    # Build prompt — append range violation addendum when violations exist
+    prompt = FIX_PROMPT.format(
+        differences=diff_text,
+        musicxml=musicxml_content,
+    )
+    if range_hints:
+        hints_block = "\n".join(f"  • {h}" for h in range_hints)
+        prompt += FIX_PROMPT_RANGE_ADDENDUM.format(range_hints=hints_block)
 
     message = api.create_message(
         model="claude-sonnet-4-6",
@@ -47,10 +78,7 @@ def fix_musicxml(musicxml_content: str, differences: list[dict]) -> str:
         messages=[
             {
                 "role": "user",
-                "content": FIX_PROMPT.format(
-                    differences=diff_text,
-                    musicxml=musicxml_content,
-                ),
+                "content": prompt,
             }
         ],
     )

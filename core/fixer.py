@@ -85,11 +85,25 @@ def fix_musicxml(
 
     response_text = message.content[0].text
 
-    # Extract XML from response
+    # Extract XML from response - handle various code fence formats
     xml_str = response_text
+
+    # Try XML code fence first
     if "```xml" in xml_str:
-        xml_str = xml_str.split("```xml")[1].split("```")[0]
+        parts = xml_str.split("```xml")
+        if len(parts) > 1:
+            xml_str = parts[1]
+            if "```" in xml_str:
+                xml_str = xml_str.split("```")[0]
+
+    # Try generic code fence
     elif "```" in xml_str:
-        xml_str = xml_str.split("```")[1].split("```")[0]
+        parts = xml_str.split("```")
+        # Take the middle content (between first and last ```)
+        if len(parts) >= 2:
+            xml_str = parts[1] if len(parts) == 2 else parts[1]
+
+    # Final cleanup: remove any trailing backticks
+    xml_str = xml_str.rstrip().rstrip("`")
 
     return xml_str.strip()

@@ -103,7 +103,7 @@ def ai_compare(original_path: str, rendered_path: str) -> dict:
     rend_data, rend_type = encode(rendered_path)
 
     message = api.create_message(
-        model="claude-sonnet-4-5-20250929",
+        model="claude-sonnet-4-6",
         max_tokens=4000,
         messages=[
             {

@@ -42,7 +42,7 @@ def fix_musicxml(musicxml_content: str, differences: list[dict]) -> str:
     diff_text = json.dumps(differences, indent=2)
 
     message = api.create_message(
-        model="claude-sonnet-4-5-20250929",
+        model="claude-sonnet-4-6",
         max_tokens=16000,
         messages=[
             {

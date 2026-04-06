@@ -52,7 +52,7 @@ def iterate_fixture(
     fixture_name: str,
     max_iterations: int = 5,
     threshold: float = 95.0,
-    model: str = "claude-sonnet-4-5-20250929",
+    model: str = "claude-sonnet-4-6",
 ) -> dict:
     """Run the extraction-comparison-fix loop on a single fixture.
 
@@ -332,7 +332,7 @@ def _analyze_failures(iterations: list[dict]) -> dict:
 @click.option("--fixture-dir", "-d", default=None, help="Directory with MusicXML fixtures")
 @click.option("--max-iterations", "-n", default=3, help="Max iterations per fixture")
 @click.option("--threshold", "-t", default=95.0, help="Stop when overall accuracy >= this")
-@click.option("--model", "-m", default="claude-sonnet-4-5-20250929", help="Claude model")
+@click.option("--model", "-m", default="claude-sonnet-4-6", help="Claude model")
 def main(fixture, fixture_dir, max_iterations, threshold, model):
     """Run the ScoreForge iteration loop on test fixtures."""
     fdir = Path(fixture_dir) if fixture_dir else FIXTURE_DIR

@@ -563,3 +563,65 @@ Fixture 16/17: solo_with_accompaniment
 
   --- Iteration 1/50 ---
   Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 20.8%  |  Pitch: 10.0%  |  Rhythm: 0.0%  |  Notes: 20/20
+  New best score: 20.8%
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 46 issues...
+  Comparing semantically...
+  Overall: 100.0%  |  Pitch: 100.0%  |  Rhythm: 100.0%  |  Notes: 20/20
+  New best score: 100.0%
+[Error] Custom tuning: Invalid or missing file glyphnames.json
+[Error] Custom tuning: SMuFL glyph U+E262 not found in glyph table
+  Threshold reached (100.0% >= 95.0%). Stopping.
+
+============================================================
+Fixture 17/17: title_metadata
+============================================================
+  Rendering ground truth to PNG...
+
+  --- Iteration 1/50 ---
+  Extracting from image with Claude Vision...
+  Comparing semantically...
+  Overall: 27.8%  |  Pitch: 37.5%  |  Rhythm: 0.0%  |  Notes: 16/16
+  New best score: 27.8%
+
+  --- Iteration 2/50 ---
+  Applying AI fixes based on previous comparison...
+  Fixing 26 issues...
+  Comparing semantically...
+  Overall: 100.0%  |  Pitch: 100.0%  |  Rhythm: 100.0%  |  Notes: 16/16
+  New best score: 100.0%
+  Threshold reached (100.0% >= 95.0%). Stopping.
+
+
+============================================================
+ITERATION SUMMARY
+============================================================
+┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━┓
+┃ Fixture                 ┃ Best Score ┃ Iterations ┃ Converged ┃ Top Failure ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━┩
+│ annotations             │     100.0% │          2 │ YES       │ pitch       │
+│ clef_changes            │     100.0% │          2 │ YES       │ duration    │
+│ complex_rhythm          │     100.0% │          2 │ YES       │ pitch       │
+│ dynamics_hairpins       │     100.0% │          3 │ YES       │ pitch       │
+│ full_orchestra          │      96.3% │          2 │ YES       │ duration    │
+│ key_changes             │     100.0% │          2 │ YES       │ duration    │
+│ lyrics_verses           │       0.0% │         50 │ NO        │ none        │
+│ marching_stickings      │     100.0% │          2 │ YES       │ duration    │
+│ mixed_meters            │     100.0% │          2 │ YES       │ duration    │
+│ multi_voice             │     100.0% │          2 │ YES       │ pitch       │
+│ nested_tuplets          │      98.1% │          2 │ YES       │ duration    │
+│ ornaments               │     100.0% │          2 │ YES       │ pitch       │
+│ piano_chords            │     100.0% │          2 │ YES       │ pitch       │
+│ repeats_codas           │     100.0% │          2 │ YES       │ pitch       │
+│ simple_melody           │     100.0% │          3 │ YES       │ duration    │
+│ solo_with_accompaniment │     100.0% │          2 │ YES       │ duration    │
+│ title_metadata          │     100.0% │          2 │ YES       │ duration    │
+└─────────────────────────┴────────────┴────────────┴───────────┴─────────────┘
+
+Results saved to: /home/deployer/scoreforge/results/

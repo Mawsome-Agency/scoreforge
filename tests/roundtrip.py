@@ -75,7 +75,7 @@ def render_musicxml_to_png(musicxml_path: str, output_path: str) -> bool:
 @click.command()
 @click.option("--sample", default=None, help="Specific sample name to test")
 @click.option("--render-only", is_flag=True, help="Only render test images, don't run extraction")
-@click.option("--model", default="claude-sonnet-4-5-20250929", help="Claude model for extraction")
+@click.option("--model", default="claude-sonnet-4-6", help="Claude model for extraction")
 @click.option("--max-iterations", "-m", default=3, help="Max validation iterations")
 def main(sample, render_only, model, max_iterations):
     """Run round-trip tests on known MusicXML samples."""

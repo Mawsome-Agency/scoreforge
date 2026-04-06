@@ -1,0 +1,663 @@
+{
+  "version": "1.0",
+  "name": "ScoreForge Test Suite",
+  "description": "Comprehensive test suite for OMR accuracy across all notation edge cases",
+  "created": "2026-04-06",
+  "complexity_categories": [
+    {
+      "id": "multi_voice_counterpoint",
+      "name": "Multi-voice Counterpoint",
+      "description": "Two or more independent voices per staff requiring voice assignment",
+      "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+      "target_count": 8,
+      "current_count": 3,
+      "examples": [
+        "Bach Inventions",
+        "Sinfonias",
+        "Fugues"
+      ]
+    },
+    {
+      "id": "complex_tuplets",
+      "name": "Complex Tuplets",
+      "description": "Nested tuplets, cross-beat tuplets, cross-staff tuplets",
+      "difficulty": "\u2605\u2605\u2605\u2605\u2606",
+      "target_count": 6,
+      "current_count": 1,
+      "examples": [
+        "Stravinsky",
+        "Bartok",
+        "Modern piano works"
+      ]
+    },
+    {
+      "id": "grace_notes_ornaments",
+      "name": "Grace Notes & Ornaments",
+      "description": "Appoggiaturas, acciaccaturas, trills, turns, mordents",
+      "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+      "target_count": 8,
+      "current_count": 3,
+      "examples": [
+        "Baroque works",
+        "Classical concertos",
+        "Romantic piano"
+      ]
+    },
+    {
+      "id": "ossia_cue_notes",
+      "name": "Ossia Staves & Cue Notes",
+      "description": "Alternative notation passages, smaller cue note sizes",
+      "difficulty": "\u2605\u2605\u2605\u2605\u2606",
+      "target_count": 4,
+      "current_count": 0,
+      "examples": [
+        "Orchestral parts",
+        "Concertos",
+        "Film scores"
+      ]
+    },
+    {
+      "id": "transposing_instruments",
+      "name": "Transposing Instruments",
+      "description": "Clarinet in Bb, Horn in F, Saxophones",
+      "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+      "target_count": 6,
+      "current_count": 1,
+      "examples": [
+        "Orchestral scores",
+        "Wind ensemble",
+        "Big band"
+      ]
+    },
+    {
+      "id": "percussion_notation",
+      "name": "Percussion Notation",
+      "description": "Unpitched percussion, drum set notation, multiple percussion parts",
+      "difficulty": "\u2605\u2605\u2605\u2605\u2606",
+      "target_count": 5,
+      "current_count": 0,
+      "examples": [
+        "Percussion ensemble",
+        "Drum set notation",
+        "Timpani parts"
+      ]
+    },
+    {
+      "id": "guitar_tablature",
+      "name": "Guitar Tablature",
+      "description": "Tab notation, chord diagrams, fret positions",
+      "difficulty": "\u2605\u2605\u2605\u2605\u2606",
+      "target_count": 5,
+      "current_count": 0,
+      "examples": [
+        "Guitar methods",
+        "Rock/pop arrangements",
+        "Fingerstyle"
+      ]
+    },
+    {
+      "id": "figured_bass",
+      "name": "Figured Bass",
+      "description": "Baroque continuo numerals, realization symbols",
+      "difficulty": "\u2605\u2605\u2605\u2605\u2605",
+      "target_count": 4,
+      "current_count": 0,
+      "examples": [
+        "Bach cantatas",
+        "Handel oratorios",
+        "Baroque trio sonatas"
+      ]
+    },
+    {
+      "id": "cross_staff_beaming",
+      "name": "Cross-staff Beaming",
+      "description": "Notes beamed between grand staff staves",
+      "difficulty": "\u2605\u2605\u2605\u2605\u2606",
+      "target_count": 6,
+      "current_count": 0,
+      "examples": [
+        "Chopin etudes",
+        "Brahms intermezzos",
+        "Rachmaninoff preludes"
+      ]
+    },
+    {
+      "id": "irregular_time_signatures",
+      "name": "Irregular Time Signatures",
+      "description": "5/8, 7/8, 5/4, mixed meter, alternating meters",
+      "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+      "target_count": 6,
+      "current_count": 2,
+      "examples": [
+        "Bartok",
+        "Stravinsky",
+        "Modern works",
+        "Folk music"
+      ]
+    },
+    {
+      "id": "polyrhythms",
+      "name": "Polyrhythms",
+      "description": "Simultaneous different rhythmic subdivisions (3 against 2, etc.)",
+      "difficulty": "\u2605\u2605\u2605\u2605\u2605",
+      "target_count": 5,
+      "current_count": 0,
+      "examples": [
+        "Messiaen",
+        "Elliott Carter",
+        "Modern piano"
+      ]
+    },
+    {
+      "id": "mid_piece_key_changes",
+      "name": "Mid-piece Key Changes",
+      "description": "Modulations, key signature changes within piece",
+      "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+      "target_count": 6,
+      "current_count": 2,
+      "examples": [
+        "Sonata form",
+        "Rondo form",
+        "Development sections"
+      ]
+    },
+    {
+      "id": "repeats_codas",
+      "name": "Repeats & Navigation",
+      "description": "DC al Fine, DS al Coda, volta brackets, repeat signs",
+      "difficulty": "\u2605\u2605\u2606\u2606\u2606",
+      "target_count": 6,
+      "current_count": 3,
+      "examples": [
+        "Binary forms",
+        "Ternary forms",
+        "Standard classical pieces"
+      ]
+    },
+    {
+      "id": "dynamics_articulations",
+      "name": "Dynamics & Articulations",
+      "description": "pp, mf, sfz accents, staccato, tenuto, marcato",
+      "difficulty": "\u2605\u2605\u2606\u2606\u2606",
+      "target_count": 6,
+      "current_count": 2,
+      "examples": [
+        "Expressive markings",
+        "Romantic era",
+        "Contemporary works"
+      ]
+    },
+    {
+      "id": "lyrics",
+      "name": "Lyrics",
+      "description": "Single and multi-verse lyrics, syllabification",
+      "difficulty": "\u2605\u2605\u2606\u2606\u2606",
+      "target_count": 6,
+      "current_count": 3,
+      "examples": [
+        "Songs",
+        "Choral works",
+        "Opera arias"
+      ]
+    },
+    {
+      "id": "chord_symbols",
+      "name": "Chord Symbols",
+      "description": "Jazz/pop chord symbols above staff (Cmaj7, F#m7, etc.)",
+      "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+      "target_count": 5,
+      "current_count": 0,
+      "examples": [
+        "Lead sheets",
+        "Fake books",
+        "Jazz standards"
+      ]
+    },
+    {
+      "id": "multi_instrument_ensemble",
+      "name": "Multi-instrument Ensemble",
+      "description": "4+ parts, full scores, large ensemble layouts",
+      "difficulty": "\u2605\u2605\u2605\u2605\u2606",
+      "target_count": 8,
+      "current_count": 2,
+      "examples": [
+        "String quartets",
+        "Symphonies",
+        "Wind quintets"
+      ]
+    }
+  ],
+  "scores": {
+    "synthetic_fixtures": {
+      "description": "MusicXML ground-truth fixtures for unit testing",
+      "count": 17,
+      "path": "tests/fixtures/",
+      "files": [
+        {
+          "filename": "simple_melody.musicxml",
+          "categories": [
+            "multi_voice_counterpoint"
+          ],
+          "difficulty": "\u2605\u2606\u2606\u2606\u2606",
+          "note_count": 8
+        },
+        {
+          "filename": "piano_chords.musicxml",
+          "categories": [
+            "multi_voice_counterpoint"
+          ],
+          "difficulty": "\u2605\u2605\u2606\u2606\u2606",
+          "note_count": 12
+        },
+        {
+          "filename": "complex_rhythm.musicxml",
+          "categories": [
+            "complex_tuplets",
+            "irregular_time_signatures"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+          "note_count": 16
+        },
+        {
+          "filename": "mixed_meters.musicxml",
+          "categories": [
+            "irregular_time_signatures"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+          "note_count": 20
+        },
+        {
+          "filename": "multi_voice.musicxml",
+          "categories": [
+            "multi_voice_counterpoint"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+          "note_count": 14
+        },
+        {
+          "filename": "ornaments.musicxml",
+          "categories": [
+            "grace_notes_ornaments"
+          ],
+          "difficulty": "\u2605\u2605\u2606\u2606\u2606",
+          "note_count": 8
+        },
+        {
+          "filename": "nested_tuplets.musicxml",
+          "categories": [
+            "complex_tuplets"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2605\u2606",
+          "note_count": 24
+        },
+        {
+          "filename": "key_changes.musicxml",
+          "categories": [
+            "mid_piece_key_changes"
+          ],
+          "difficulty": "\u2605\u2605\u2606\u2606\u2606",
+          "note_count": 32
+        },
+        {
+          "filename": "full_orchestra.musicxml",
+          "categories": [
+            "multi_instrument_ensemble",
+            "transposing_instruments"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2605\u2605",
+          "note_count": 200
+        },
+        {
+          "filename": "repeats_codas.musicxml",
+          "categories": [
+            "repeats_codas"
+          ],
+          "difficulty": "\u2605\u2605\u2606\u2606\u2606",
+          "note_count": 16
+        },
+        {
+          "filename": "dynamics_hairpins.musicxml",
+          "categories": [
+            "dynamics_articulations"
+          ],
+          "difficulty": "\u2605\u2605\u2606\u2606\u2606",
+          "note_count": 12
+        },
+        {
+          "filename": "lyrics_verses.musicxml",
+          "categories": [
+            "lyrics"
+          ],
+          "difficulty": "\u2605\u2605\u2606\u2606\u2606",
+          "note_count": 24
+        },
+        {
+          "filename": "clef_changes.musicxml",
+          "categories": [
+            "multi_voice_counterpoint"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+          "note_count": 20
+        },
+        {
+          "filename": "annotations.musicxml",
+          "categories": [
+            "dynamics_articulations"
+          ],
+          "difficulty": "\u2605\u2605\u2606\u2606\u2606",
+          "note_count": 8
+        },
+        {
+          "filename": "empty_score.musicxml",
+          "categories": [
+            "multi_voice_counterpoint"
+          ],
+          "difficulty": "\u2605\u2606\u2606\u2606\u2606",
+          "note_count": 0
+        }
+      ]
+    },
+    "real_world_corpus": {
+      "description": "Public domain PDF scores for end-to-end testing",
+      "count": 24,
+      "path": "corpus/originals/",
+      "files": [
+        {
+          "filename": "simple/bluemtns-a4.pdf",
+          "composer": "Traditional",
+          "work": "Blue Mountains",
+          "source": "Mutopia",
+          "categories": [
+            "lyrics"
+          ],
+          "difficulty": "\u2605\u2606\u2606\u2606\u2606",
+          "pages": 1
+        },
+        {
+          "filename": "simple/giselle-a4.pdf",
+          "composer": "Adolphe Adam",
+          "work": "Giselle excerpt",
+          "source": "Mutopia",
+          "categories": [
+            "multi_voice_counterpoint"
+          ],
+          "difficulty": "\u2605\u2606\u2606\u2606\u2606",
+          "pages": 1
+        },
+        {
+          "filename": "simple/minuit_chretiens-a4.pdf",
+          "composer": "Adolphe Adam",
+          "work": "O Holy Night",
+          "source": "Mutopia",
+          "categories": [
+            "lyrics",
+            "irregular_time_signatures"
+          ],
+          "difficulty": "\u2605\u2606\u2606\u2606\u2606",
+          "pages": 1
+        },
+        {
+          "filename": "simple/swallows-a4.pdf",
+          "composer": "Traditional",
+          "work": "Swallows folk song",
+          "source": "Mutopia",
+          "categories": [
+            "lyrics"
+          ],
+          "difficulty": "\u2605\u2606\u2606\u2606\u2606",
+          "pages": 1
+        },
+        {
+          "filename": "simple/Vocalise1-a4.pdf",
+          "composer": "Unknown",
+          "work": "Vocalise",
+          "source": "Mutopia",
+          "categories": [
+            "multi_voice_counterpoint"
+          ],
+          "difficulty": "\u2605\u2606\u2606\u2606\u2606",
+          "pages": 1
+        },
+        {
+          "filename": "moderate/bach-invention-01-a4.pdf",
+          "composer": "J.S. Bach",
+          "work": "Two-Part Invention No. 1, BWV 772",
+          "source": "Mutopia",
+          "categories": [
+            "multi_voice_counterpoint"
+          ],
+          "difficulty": "\u2605\u2605\u2606\u2606\u2606",
+          "pages": 1,
+          "key_features": [
+            "Two independent voices",
+            "Imitative counterpoint"
+          ]
+        },
+        {
+          "filename": "moderate/wtk1-prelude1-a4.pdf",
+          "composer": "J.S. Bach",
+          "work": "WTC Book I Prelude No. 1, BWV 846",
+          "source": "Mutopia",
+          "categories": [
+            "multi_voice_counterpoint"
+          ],
+          "difficulty": "\u2605\u2605\u2606\u2606\u2606",
+          "pages": 1,
+          "key_features": [
+            "Arpeggiated chords",
+            "Grand staff"
+          ]
+        },
+        {
+          "filename": "moderate/fur_Elise_WoO59-a4.pdf",
+          "composer": "Ludwig van Beethoven",
+          "work": "F\u00fcr Elise, WoO 59",
+          "source": "Mutopia",
+          "categories": [
+            "grace_notes_ornaments",
+            "mid_piece_key_changes",
+            "repeats_codas"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+          "pages": 3,
+          "key_features": [
+            "Grace note appoggiatura",
+            "Key change A min \u2192 F maj",
+            "Repeat structure"
+          ]
+        },
+        {
+          "filename": "moderate/chopin-prelude-28-4-a4.pdf",
+          "composer": "Fr\u00e9d\u00e9ric Chopin",
+          "work": "Prelude Op. 28 No. 4 in E minor",
+          "source": "Mutopia",
+          "categories": [
+            "dynamics_articulations"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+          "pages": 1,
+          "key_features": [
+            "Melody + sustained chords",
+            "Hairpin dynamics"
+          ]
+        },
+        {
+          "filename": "moderate/mozart-K545-1-a4.pdf",
+          "composer": "Wolfgang Amadeus Mozart",
+          "work": "Piano Sonata K. 545, Mvt 1",
+          "source": "Mutopia",
+          "categories": [
+            "grace_notes_ornaments"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+          "pages": 2,
+          "key_features": [
+            "Alberti bass",
+            "Trill ornament"
+          ]
+        },
+        {
+          "filename": "complex/chopin-prelude-28-20-a4.pdf",
+          "composer": "Fr\u00e9d\u00e9ric Chopin",
+          "work": "Prelude Op. 28 No. 20 in C minor",
+          "source": "Mutopia",
+          "categories": [
+            "dynamics_articulations",
+            "multi_voice_counterpoint"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+          "pages": 1,
+          "key_features": [
+            "Dense 4-voice chords",
+            "ppp dynamics"
+          ]
+        },
+        {
+          "filename": "complex/chopin_nocturne_op9_n2-a4.pdf",
+          "composer": "Fr\u00e9d\u00e9ric Chopin",
+          "work": "Nocturne Op. 9 No. 2 in Eb major",
+          "source": "Mutopia",
+          "categories": [
+            "grace_notes_ornaments",
+            "complex_tuplets",
+            "dynamics_articulations"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2605\u2606",
+          "pages": 4,
+          "key_features": [
+            "Triplet subdivision in 12/8",
+            "Hairpin dynamics",
+            "Ornamental runs"
+          ]
+        },
+        {
+          "filename": "complex/bach-invention-13-a4.pdf",
+          "composer": "J.S. Bach",
+          "work": "Two-Part Invention No. 13, BWV 784",
+          "source": "Mutopia",
+          "categories": [
+            "multi_voice_counterpoint",
+            "complex_tuplets"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+          "pages": 1,
+          "key_features": [
+            "Chromatic voice-leading",
+            "Cross-beat ties"
+          ]
+        },
+        {
+          "filename": "complex/bach-sinfonia-bwv787-a4.pdf",
+          "composer": "J.S. Bach",
+          "work": "Sinfonia No. 1, BWV 787",
+          "source": "Mutopia",
+          "categories": [
+            "multi_voice_counterpoint"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2605\u2606",
+          "pages": 1,
+          "key_features": [
+            "Three independent voices",
+            "Voice assignment"
+          ]
+        },
+        {
+          "filename": "complex/mozart-alla-turca-KV331-a4.pdf",
+          "composer": "Wolfgang Amadeus Mozart",
+          "work": "Rondo alla Turca, K. 331",
+          "source": "Mutopia",
+          "categories": [
+            "grace_notes_ornaments",
+            "mid_piece_key_changes",
+            "repeats_codas"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2605\u2606",
+          "pages": 3,
+          "key_features": [
+            "Grace note figures",
+            "Key change A min \u2192 A maj",
+            "Repeat with different endings"
+          ]
+        },
+        {
+          "filename": "choral/bach-chorale-BWV277-a4.pdf",
+          "composer": "J.S. Bach",
+          "work": "Christ lag in Todes Banden, BWV 277",
+          "source": "Mutopia",
+          "categories": [
+            "lyrics",
+            "multi_voice_counterpoint"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+          "pages": 1,
+          "key_features": [
+            "4-part SATB",
+            "German hymn text"
+          ]
+        },
+        {
+          "filename": "choral/bach-chorale-BWV264-a4.pdf",
+          "composer": "J.S. Bach",
+          "work": "Chorale BWV 264",
+          "source": "Mutopia",
+          "categories": [
+            "lyrics",
+            "multi_voice_counterpoint",
+            "figured_bass"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+          "pages": 1,
+          "key_features": [
+            "4-part SATB",
+            "Figured bass symbols"
+          ]
+        },
+        {
+          "filename": "orchestral/beethoven-sym5-op67-a4.pdf",
+          "composer": "Ludwig van Beethoven",
+          "work": "Symphony No. 5 Op. 67",
+          "source": "Mutopia",
+          "categories": [
+            "multi_instrument_ensemble",
+            "transposing_instruments",
+            "dynamics_articulations"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2605\u2605",
+          "pages": 50,
+          "key_features": [
+            "Full orchestra",
+            "Transposing instruments",
+            "pp to sf dynamics"
+          ]
+        },
+        {
+          "filename": "orchestral/bach-bwv1041-violin-solo-a4.pdf",
+          "composer": "J.S. Bach",
+          "work": "Violin Concerto in A minor BWV 1041, Violin Solo Part",
+          "source": "Mutopia",
+          "categories": [
+            "multi_instrument_ensemble"
+          ],
+          "difficulty": "\u2605\u2605\u2605\u2606\u2606",
+          "pages": 4,
+          "key_features": [
+            "Rapid 16th passages",
+            "Double-stops",
+            "Trills"
+          ]
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "total_complexity_categories": 17,
+    "covered_categories": 10,
+    "coverage_percentage": 58.8,
+    "synthetic_fixture_count": 17,
+    "real_world_score_count": 24,
+    "target_total": 100,
+    "current_total": 41,
+    "needed": 59
+  },
+  "target": 100
+}

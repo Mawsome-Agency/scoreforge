@@ -156,6 +156,103 @@ REMINDER: Your entire response must be a single valid JSON object. Do NOT includ
 
 
 # ---------------------------------------------------------------------------
+# Complexity analysis for thinking budget
+# ---------------------------------------------------------------------------
+
+def _estimate_complexity(structure_data: dict) -> dict:
+    """Estimate score complexity from structure pass data.
+
+    Returns dict with:
+        - note_estimate: Estimated total notes
+        - complexity_score: 0-100 scale
+        - is_trivial: True if near-empty/blank
+    """
+    parts = structure_data.get("parts", [])
+
+    # Count estimated notes
+    note_estimate = 0
+    for part in parts:
+        measure_count = part.get("measure_count", 1)
+        # Assume 4 notes per measure as baseline estimate
+        note_estimate += measure_count * 4
+
+    # Calculate complexity score
+    complexity_score = min(100, note_estimate * 2)  # Cap at 100
+
+    # Detect trivial/empty scores
+    total_measures = sum(p.get("measure_count", 0) for p in parts)
+    is_trivial = (
+        total_measures <= 2 and
+        structure_data.get("page_count_estimate", 1) == 1
+    )
+
+    return {
+        "note_estimate": note_estimate,
+        "complexity_score": complexity_score,
+        "is_trivial": is_trivial,
+    }
+
+
+def _calculate_thinking_budget(complexity: dict) -> int:
+    """Calculate thinking budget based on estimated complexity.
+
+    - Empty/simple scores: 2000 tokens max
+    - Moderate: 5000-8000 tokens
+    - Complex: 10000 tokens max
+    """
+    if complexity["is_trivial"]:
+        return 2000  # Minimal thinking for empty scores
+
+    note_estimate = complexity["note_estimate"]
+
+    if note_estimate < 10:
+        return 4000  # Simple scores
+    elif note_estimate < 30:
+        return 7000  # Moderate scores
+    else:
+        return 10000  # Complex scores
+
+
+def _generate_empty_musicxml(title: str = None, composer: str = None) -> Score:
+    """Generate a minimal valid MusicXML for empty scores.
+
+    Returns a Score with single whole-measure rest, standard clef/time/key.
+    """
+    score = Score(
+        title=title or "Empty Score",
+        composer=composer,
+    )
+
+    # Single piano part with 1 measure
+    part = Part(
+        id="P1",
+        name="Piano",
+        staves=1,
+    )
+
+    measure = Measure(number=1)
+    measure.time_signature = TimeSignature(beats=4, beat_type=4)
+    measure.key_signature = KeySignature(fifths=0, mode="major")
+    measure.clef = Clef(sign="G", line=2)
+    measure.divisions = 1
+
+    # Single whole-measure rest
+    rest = Note(
+        note_type=NoteType.WHOLE,
+        duration=4,
+        is_rest=True,
+        voice=1,
+        staff=1,
+    )
+    measure.notes.append(rest)
+
+    part.measures.append(measure)
+    score.parts.append(part)
+
+    return score
+
+
+# ---------------------------------------------------------------------------
 # Image encoding
 # ---------------------------------------------------------------------------
 
@@ -264,6 +361,35 @@ def _extract_two_pass(
     structure_json_str = _extract_json_from_response(structure_text)
     structure_data = json.loads(structure_json_str)
 
+    # --- Analyze complexity for thinking budget ---
+    complexity = _estimate_complexity(structure_data)
+
+    # --- Detect suspicious structure responses (hallucination check) ---
+    total_measures = sum(p.get("measure_count", 0) for p in structure_data.get("parts", []))
+    page_count = structure_data.get("page_count_estimate", 1)
+
+    # If structure claims many measures on single-page image, likely hallucinating
+    is_suspicious = total_measures > 5 or (total_measures > 2 and page_count == 1)
+
+    if is_suspicious:
+        print(f"[ScoreForge] Suspicious structure: {total_measures} measures on single page - re-running with simpler settings", flush=True)
+        # Retry structure pass without thinking to reduce hallucinations
+        structure_kwargs["max_tokens"] = 2000  # Reduce max tokens
+        structure_text = api.stream_and_collect(**structure_kwargs)
+        structure_json_str = _extract_json_from_response(structure_text)
+        structure_data = json.loads(structure_json_str)
+        # Re-calculate complexity
+        complexity = _estimate_complexity(structure_data)
+
+    # --- Check for trivial/empty scores - short-circuit ---
+    if complexity["is_trivial"] and complexity["note_estimate"] <= 1:
+        # Empty or near-empty score: generate minimal valid MusicXML
+        print("[ScoreForge] Detected trivial/empty score - generating minimal MusicXML", flush=True)
+        return _generate_empty_musicxml(
+            title=structure_data.get("title"),
+            composer=structure_data.get("composer"),
+        )
+
     # --- Pass 2: Extract detailed notes ---
     detail_prompt = DETAIL_PROMPT.format(
         structure_json=json.dumps(structure_data, indent=2)
@@ -282,17 +408,37 @@ def _extract_two_pass(
     }
 
     # Use extended thinking for complex scores if the model supports it
+    # Scale thinking budget based on complexity (Fix C)
     if use_thinking and _model_supports_thinking(model):
+        thinking_budget = _calculate_thinking_budget(complexity)
         api_kwargs["thinking"] = {
             "type": "enabled",
-            "budget_tokens": 10000,
+            "budget_tokens": thinking_budget,
         }
-        # Extended thinking requires higher max_tokens
-        api_kwargs["max_tokens"] = 32000
+        # Scale max_tokens based on thinking budget
+        api_kwargs["max_tokens"] = thinking_budget * 3
+        print(f"[ScoreForge] Using {thinking_budget} thinking tokens for complexity score {complexity['complexity_score']}", flush=True)
 
-    response_text = api.stream_and_collect(**api_kwargs)
-    json_str = _extract_json_from_response(response_text)
-    data = json.loads(json_str)
+    # --- Extract with JSONDecodeError recovery (Fix A) ---
+    try:
+        response_text = api.stream_and_collect(**api_kwargs)
+        json_str = _extract_json_from_response(response_text)
+        data = json.loads(json_str)
+    except json.JSONDecodeError as e:
+        # Truncation recovery: retry without thinking and with lower max_tokens
+        error_msg = str(e)
+        if "Unterminated" in error_msg or "Expecting" in error_msg:
+            print(f"[ScoreForge] JSONDecodeError on response - retrying without extended thinking", flush=True)
+            # Retry without thinking, lower max_tokens for quick response
+            recovery_kwargs = api_kwargs.copy()
+            recovery_kwargs.pop("thinking", None)  # Remove extended thinking
+            recovery_kwargs["max_tokens"] = 8000  # Reduced budget for simple scores
+
+            recovery_response = api.stream_and_collect(**recovery_kwargs)
+            json_str = _extract_json_from_response(recovery_response)
+            data = json.loads(json_str)
+        else:
+            raise  # Re-raise if not a truncation error
 
     return _build_score(data)
 
@@ -325,16 +471,36 @@ def _extract_single_pass(
         ],
     }
 
+    # For single-pass, assume moderate complexity for thinking budget
+    # (Fix C - scale thinking for simple scores)
     if use_thinking and _model_supports_thinking(model):
+        thinking_budget = 5000  # Conservative estimate for single-pass
         api_kwargs["thinking"] = {
             "type": "enabled",
-            "budget_tokens": 10000,
+            "budget_tokens": thinking_budget,
         }
-        api_kwargs["max_tokens"] = 32000
+        api_kwargs["max_tokens"] = thinking_budget * 3
+        print(f"[ScoreForge] Single-pass: using {thinking_budget} thinking tokens", flush=True)
 
-    response_text = api.stream_and_collect(**api_kwargs)
-    json_str = _extract_json_from_response(response_text)
-    data = json.loads(json_str)
+    # --- Extract with JSONDecodeError recovery (Fix A) ---
+    try:
+        response_text = api.stream_and_collect(**api_kwargs)
+        json_str = _extract_json_from_response(response_text)
+        data = json.loads(json_str)
+    except json.JSONDecodeError as e:
+        # Truncation recovery: retry without thinking
+        error_msg = str(e)
+        if "Unterminated" in error_msg or "Expecting" in error_msg:
+            print(f"[ScoreForge] JSONDecodeError on response - retrying without extended thinking", flush=True)
+            recovery_kwargs = api_kwargs.copy()
+            recovery_kwargs.pop("thinking", None)
+            recovery_kwargs["max_tokens"] = 8000
+
+            recovery_response = api.stream_and_collect(**recovery_kwargs)
+            json_str = _extract_json_from_response(recovery_response)
+            data = json.loads(json_str)
+        else:
+            raise
 
     return _build_score(data)
 

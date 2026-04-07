@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="4.0">
+  <work>
+    <work-title>Nested Tuplets</work-title>
+  </work>
+  <identification>
+    <creator type="composer">ScoreForge Test</creator>
+    <encoding>
+      <software>ScoreForge</software>
+    </encoding>
+  </identification>
+  <part-list>
+    <score-part id="P1">
+      <part-name>Strings</part-name>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <!--
+      C major, 3/4 time.
+      divisions=6: quarter=6, half=12, dotted-half=18, eighth=3
+      triplet-eighth (3:2): duration=2  (since 3 × 2 = 6 = one quarter)
+      Full measure = 3 quarters = 18 divisions.
+
+      Two voices throughout:
+        Voice 1 (stems up): melodic upper line with tuplets in mm. 2-3
+        Voice 2 (stems down): steady harmonic/bass line
+    -->
+
+    <!-- Measure 1: Establishes texture — simple quarters in both voices -->
+    <measure number="1">
+      <attributes>
+        <divisions>6</divisions>
+        <key>
+          <fifths>0</fifths>
+          <mode>major</mode>
+        </key>
+        <time>
+          <beats>3</beats>
+          <beat-type>4</beat-type>
+        </time>
+        <clef>
+          <sign>G</sign>
+          <line>2</line>
+        </clef>
+      </attributes>
+      <!-- Voice 1: C5 E5 G5 — 6+6+6=18 -->
+      <note>
+        <pitch><step>C</step><octave>5</octave></pitch>
+        <duration>6</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+      </note>
+      <note>
+        <pitch><step>E</step><octave>5</octave></pitch>
+        <duration>6</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+      </note>
+      <note>
+        <pitch><step>G</step><octave>5</octave></pitch>
+        <duration>6</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+      </note>
+      <backup>
+        <duration>18</duration>
+      </backup>
+      <!-- Voice 2: C4 half + G3 quarter — 12+6=18 -->
+      <note>
+        <pitch><step>C</step><octave>4</octave></pitch>
+        <duration>12</duration>
+        <voice>2</voice>
+        <type>half</type>
+      </note>
+      <note>
+        <pitch><step>G</step><octave>3</octave></pitch>
+        <duration>6</duration>
+        <voice>2</voice>
+        <type>quarter</type>
+      </note>
+    </measure>
+
+    <!-- Measure 2: Triplet in voice 1 on beat 1, then two quarters -->
+    <measure number="2">
+      <!--
+        Voice 1: triplet-eighth C5 D5 E5 (2+2+2=6, beats beat 1),
+                 quarter F5 (6, beat 2), quarter G5 (6, beat 3) — total=18
+      -->
+      <note>
+        <pitch><step>C</step><octave>5</octave></pitch>
+        <duration>2</duration>
+        <voice>1</voice>
+        <type>eighth</type>
+        <time-modification>
+          <actual-notes>3</actual-notes>
+          <normal-notes>2</normal-notes>
+        </time-modification>
+        <beam number="1">begin</beam>
+        <notations>
+          <tuplet type="start" number="1"/>
+        </notations>
+      </note>
+      <note>
+        <pitch><step>D</step><octave>5</octave></pitch>
+        <duration>2</duration>
+        <voice>1</voice>
+        <type>eighth</type>
+        <time-modification>
+          <actual-notes>3</actual-notes>
+          <normal-notes>2</normal-notes>
+        </time-modification>
+        <beam number="1">continue</beam>
+      </note>
+      <note>
+        <pitch><step>E</step><octave>5</octave></pitch>
+        <duration>2</duration>
+        <voice>1</voice>
+        <type>eighth</type>
+        <time-modification>
+          <actual-notes>3</actual-notes>
+          <normal-notes>2</normal-notes>
+        </time-modification>
+        <beam number="1">end</beam>
+        <notations>
+          <tuplet type="stop" number="1"/>
+        </notations>
+      </note>
+      <note>
+        <pitch><step>F</step><octave>5</octave></pitch>
+        <duration>6</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+      </note>
+      <note>
+        <pitch><step>G</step><octave>5</octave></pitch>
+        <duration>6</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+      </note>
+      <backup>
+        <duration>18</duration>
+      </backup>
+      <!-- Voice 2: C4 dotted-half — 18 -->
+      <note>
+        <pitch><step>C</step><octave>4</octave></pitch>
+        <duration>18</duration>
+        <voice>2</voice>
+        <type>half</type>
+        <dot/>
+      </note>
+    </measure>
+
+    <!-- Measure 3: Quarter + triplet + quarter in voice 1; simple quarters in voice 2 -->
+    <measure number="3">
+      <!--
+        Voice 1: quarter A5 (6), triplet-eighth G5 F5 E5 (2+2+2=6), quarter D5 (6) — total=18
+      -->
+      <note>
+        <pitch><step>A</step><octave>5</octave></pitch>
+        <duration>6</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+      </note>
+      <note>
+        <pitch><step>G</step><octave>5</octave></pitch>
+        <duration>2</duration>
+        <voice>1</voice>
+        <type>eighth</type>
+        <time-modification>
+          <actual-notes>3</actual-notes>
+          <normal-notes>2</normal-notes>
+        </time-modification>
+        <beam number="1">begin</beam>
+        <notations>
+          <tuplet type="start" number="1"/>
+        </notations>
+      </note>
+      <note>
+        <pitch><step>F</step><octave>5</octave></pitch>
+        <duration>2</duration>
+        <voice>1</voice>
+        <type>eighth</type>
+        <time-modification>
+          <actual-notes>3</actual-notes>
+          <normal-notes>2</normal-notes>
+        </time-modification>
+        <beam number="1">continue</beam>
+      </note>
+      <note>
+        <pitch><step>E</step><octave>5</octave></pitch>
+        <duration>2</duration>
+        <voice>1</voice>
+        <type>eighth</type>
+        <time-modification>
+          <actual-notes>3</actual-notes>
+          <normal-notes>2</normal-notes>
+        </time-modification>
+        <beam number="1">end</beam>
+        <notations>
+          <tuplet type="stop" number="1"/>
+        </notations>
+      </note>
+      <note>
+        <pitch><step>D</step><octave>5</octave></pitch>
+        <duration>6</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+      </note>
+      <backup>
+        <duration>18</duration>
+      </backup>
+      <!-- Voice 2: G3 F3 E3 quarters — 6+6+6=18 -->
+      <note>
+        <pitch><step>G</step><octave>3</octave></pitch>
+        <duration>6</duration>
+        <voice>2</voice>
+        <type>quarter</type>
+      </note>
+      <note>
+        <pitch><step>F</step><octave>3</octave></pitch>
+        <duration>6</duration>
+        <voice>2</voice>
+        <type>quarter</type>
+      </note>
+      <note>
+        <pitch><step>E</step><octave>3</octave></pitch>
+        <duration>6</duration>
+        <voice>2</voice>
+        <type>quarter</type>
+      </note>
+    </measure>
+
+    <!-- Measure 4: Resolution — dotted-half in both voices -->
+    <measure number="4">
+      <!-- Voice 1: C5 dotted-half — 18 -->
+      <note>
+        <pitch><step>C</step><octave>5</octave></pitch>
+        <duration>18</duration>
+        <voice>1</voice>
+        <type>half</type>
+        <dot/>
+      </note>
+      <backup>
+        <duration>18</duration>
+      </backup>
+      <!-- Voice 2: C3 dotted-half — 18 -->
+      <note>
+        <pitch><step>C</step><octave>3</octave></pitch>
+        <duration>18</duration>
+        <voice>2</voice>
+        <type>half</type>
+        <dot/>
+      </note>
+      <barline location="right">
+        <bar-style>light-heavy</bar-style>
+      </barline>
+    </measure>
+  </part>
+</score-partwise>

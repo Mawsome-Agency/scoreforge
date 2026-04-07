@@ -52,6 +52,7 @@ def iterate_fixture(
     model: str = "claude-sonnet-4-5-20250929",
     two_pass: bool = True,
     use_thinking: bool = True,
+    use_time_sig_preextract: bool = False,
 ) -> dict:
     """Run the extraction-comparison-fix loop on a single fixture.
 
@@ -93,8 +94,8 @@ def iterate_fixture(
         try:
             if iteration == 1 or current_xml_content is None:
                 # First iteration: extract from scratch
-                console.print(f"  Extracting from image with Claude Vision (two_pass={two_pass}, thinking={use_thinking})...")
-                score = extract_from_image(gt_png, model=model, two_pass=two_pass, use_thinking=use_thinking)
+                console.print(f"  Extracting from image with Claude Vision (two_pass={two_pass}, thinking={use_thinking}, time_sig_preextract={use_time_sig_preextract})...")
+                score = extract_from_image(gt_png, model=model, two_pass=two_pass, use_thinking=use_thinking, use_time_sig_preextract=use_time_sig_preextract)
                 current_xml_content = build_musicxml(score)
             else:
                 # Check if scores are plateauing — if so, re-extract with context

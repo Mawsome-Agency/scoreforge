@@ -41,7 +41,8 @@ console = Console()
 @click.option("--verbose", is_flag=True, help="Verbose output")
 @click.option("--save-intermediates", is_flag=True, help="Save intermediate files")
 @click.option("--report", "-r", is_flag=True, help="Generate HTML visual comparison report")
-def main(input_path, output, validate, max_iterations, threshold, model, verbose, save_intermediates, report):
+@click.option("--time-sig-preextract", "-ts", is_flag=True, help="Pre-extract time signature and inject as constraint")
+def main(input_path, output, validate, max_iterations, threshold, model, verbose, save_intermediates, report, time_sig_preextract):
     """Convert sheet music to MusicXML."""
     input_path = Path(input_path)
 
@@ -53,7 +54,8 @@ def main(input_path, output, validate, max_iterations, threshold, model, verbose
         f"Input: {input_path}\n"
         f"Output: {output}\n"
         f"Validate: {validate} (threshold={threshold}, max={max_iterations})\n"
-        f"Model: {model}",
+        f"Model: {model}\n"
+        f"Time Sig Pre-extract: {time_sig_preextract}",
         title="Configuration",
     ))
 
@@ -61,7 +63,7 @@ def main(input_path, output, validate, max_iterations, threshold, model, verbose
     console.print("\n[bold cyan]Step 1:[/bold cyan] Extracting music notation from image...")
     with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}")) as progress:
         task = progress.add_task("Analyzing sheet music with Claude Vision...", total=None)
-        score = extract_from_image(str(input_path), model=model)
+        score = extract_from_image(str(input_path), model=model, use_time_sig_preextract=time_sig_preextract)
         progress.update(task, completed=True)
 
     console.print(f"  Extracted: {score.part_count} part(s), {score.measure_count} measure(s)")

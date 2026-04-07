@@ -7,3 +7,4 @@ imagehash>=4.3.0
 lxml>=4.9.0
 click>=8.1.0
 rich>=13.0.0
+pytesseract>=0.3.0

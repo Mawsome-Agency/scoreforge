@@ -11,6 +11,12 @@ from models.score import Score, Part
 from models.measure import Measure, KeySignature, TimeSignature, Clef, Barline
 from models.note import Note, NoteType, Pitch, Accidental
 
+from core.timesig_extractor import (
+    extract_time_signature,
+    inject_time_signature_constraint,
+    TimeSignatureResult,
+)
+
 
 # ---------------------------------------------------------------------------
 # Structured two-pass extraction prompts
@@ -211,6 +217,7 @@ def extract_from_image(
     model: str = "claude-sonnet-4-5-20250929",
     use_thinking: bool = False,
     two_pass: bool = False,
+    use_time_sig_preextract: bool = False,
 ) -> Score:
     """Extract musical score from an image using Claude Vision.
 
@@ -219,12 +226,27 @@ def extract_from_image(
         model: Claude model to use.
         use_thinking: Whether to use extended thinking for complex analysis.
         two_pass: Whether to do structure-first then detail extraction.
+    use_time_sig_preextract: Whether to pre-extract time signature and inject as constraint.
 
     Returns:
         Parsed Score object.
     """
     client = anthropic.Anthropic()
     image_data, media_type = encode_image(image_path)
+
+    # Step 0: Pre-extract time signature (if enabled)
+    time_sig_result = None
+    if use_time_sig_preextract:
+        time_sig_result = extract_time_signature(
+            image_path,
+            use_preextract=True,
+            min_confidence=0.60
+        )
+        if time_sig_result:
+            print(f"  [Pre-extraction] Time signature detected: {time_sig_result.raw_text} "
+                  f"(confidence: {time_sig_result.confidence:.1%}, method: {time_sig_result.method})")
+        else:
+            print("  [Pre-extraction] Time signature not detected with sufficient confidence")
 
     image_block = {
         "type": "image",
@@ -236,9 +258,9 @@ def extract_from_image(
     }
 
     if two_pass:
-        return _extract_two_pass(client, image_block, model, use_thinking)
+        return _extract_two_pass(client, image_block, model, use_thinking, time_sig_result)
     else:
-        return _extract_single_pass(client, image_block, model, use_thinking)
+        return _extract_single_pass(client, image_block, model, use_thinking, time_sig_result)
 
 
 # ---------------------------------------------------------------------------
@@ -250,17 +272,19 @@ def _extract_two_pass(
     image_block: dict,
     model: str,
     use_thinking: bool,
+    time_sig_result: Optional[TimeSignatureResult] = None,
 ) -> Score:
     """Two-pass extraction: structure first, then note-by-note details."""
 
     # --- Pass 1: Extract structure ---
+    structure_prompt_text = _prepare_structure_prompt(time_sig_result)
     structure_msg = client.messages.create(
         model=model,
         max_tokens=4000,
         messages=[
             {
                 "role": "user",
-                "content": [image_block, {"type": "text", "text": STRUCTURE_PROMPT}],
+                "content": [image_block, {"type": "text", "text": structure_prompt_text}],
             }
         ],
     )
@@ -314,6 +338,7 @@ def _extract_single_pass(
     image_block: dict,
     model: str,
     use_thinking: bool,
+    time_sig_result: Optional[TimeSignatureResult] = None,
 ) -> Score:
     """Single-pass extraction with the full detail prompt."""
 
@@ -502,3 +527,16 @@ def _build_note(data: dict) -> Note:
         fermata=data.get("fermata", False),
         grace=data.get("grace", False),
     )
+
+# ---------------------------------------------------------------------------
+# Helper: Prepare structure prompt with time signature constraint
+# ---------------------------------------------------------------------------
+
+def _prepare_structure_prompt(
+    time_sig_result: Optional[TimeSignatureResult]
+) -> str:
+    """Prepare structure prompt, optionally injecting time signature constraint."""
+    base_prompt = STRUCTURE_PROMPT
+    if time_sig_result:
+        base_prompt = inject_time_signature_constraint(base_prompt, time_sig_result)
+    return base_prompt

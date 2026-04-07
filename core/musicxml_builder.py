@@ -159,8 +159,8 @@ def _build_note(parent: etree._Element, note: Note):
     # Beam
     if note.beam:
         beam_elem = etree.SubElement(n_elem, "beam", number="1")
-        # Defensive: ensure beam value is a string
-        beam_val = note.beam if isinstance(note.beam, str) else str(note.beam)
+        # Defensive: ensure beam value is a string (handles dict and other non-string types)
+        beam_val = str(note.beam) if note.beam is not None else ""
         beam_elem.text = beam_val
 
     # Notations
@@ -202,7 +202,9 @@ def _build_note(parent: etree._Element, note: Note):
                           str(note.dynamic))
         else:
             dynamic_val = note.dynamic
-        etree.SubElement(dynamics, str(dynamic_val))
+        # FINAL DEFENSIVE: ensure dynamic value is always a string before lxml assignment
+        dynamic_val = str(dynamic_val) if dynamic_val is not None else ""
+        etree.SubElement(dynamics, dynamic_val)
 
     # Lyrics — Claude may return strings or dicts like {"text": "...", "syllabic": "..."}
     for i, lyric_item in enumerate(note.lyrics):
@@ -227,6 +229,9 @@ def _build_note(parent: etree._Element, note: Note):
         else:
             lyric_text = str(lyric_item) if lyric_item is not None else ""
             syllabic = "single"
+        # FINAL DEFENSIVE: ensure both values are strings before lxml assignment
+        lyric_text = str(lyric_text) if lyric_text is not None else ""
+        syllabic = str(syllabic) if syllabic is not None else "single"
         lyric = etree.SubElement(n_elem, "lyric", number=str(i + 1))
         etree.SubElement(lyric, "syllabic").text = syllabic
         etree.SubElement(lyric, "text").text = lyric_text

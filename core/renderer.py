@@ -20,9 +20,10 @@ def render_musicxml_to_image(
     dpi: int = 150,
     scale: int = 100,
 ) -> str:
-    """Render MusicXML to a PNG image using Verovio CLI.
+    """Render MusicXML to a PNG image using Verovio.
 
-    Verovio renders to SVG, then rsvg-convert (or Pillow fallback) converts to PNG.
+    Tries CLI first, then falls back to verovio Python package.
+    Verovio renders to SVG, then rsvg-convert (or cairosvg) converts to PNG.
 
     Returns the path to the rendered PNG image.
     """
@@ -33,20 +34,15 @@ def render_musicxml_to_image(
     if output_path is None:
         output_path = str(musicxml_path.with_suffix(".png"))
 
-    verovio = _find_verovio()
-    if verovio is None:
-        raise RuntimeError(
-            "Verovio not found. Install via: brew install verovio"
-        )
-
-    # Render MusicXML -> SVG with verovio
-    svg_path = _render_to_svg(verovio, str(musicxml_path), scale=scale)
-
-    # Convert SVG -> PNG
-    _svg_to_png(svg_path, output_path, dpi=dpi)
-
-    # Clean up intermediate SVG(s)
-    _cleanup_svgs(svg_path)
+    verovio_cli = _find_verovio()
+    if verovio_cli is not None:
+        # Use CLI path
+        svg_path = _render_to_svg(verovio_cli, str(musicxml_path), scale=scale)
+        _svg_to_png(svg_path, output_path, dpi=dpi)
+        _cleanup_svgs(svg_path)
+    else:
+        # Fall back to verovio Python package
+        _render_with_python_verovio(str(musicxml_path), output_path, scale=scale, dpi=dpi)
 
     return output_path
 
@@ -56,7 +52,7 @@ def render_musicxml_to_svg(
     output_path: Optional[str] = None,
     scale: int = 100,
 ) -> str:
-    """Render MusicXML to SVG using Verovio CLI.
+    """Render MusicXML to SVG using Verovio CLI or Python package.
 
     Returns the path to the SVG file (first page if multi-page).
     """
@@ -67,11 +63,87 @@ def render_musicxml_to_svg(
     if output_path is None:
         output_path = str(musicxml_path.with_suffix(".svg"))
 
-    verovio = _find_verovio()
-    if verovio is None:
-        raise RuntimeError("Verovio not found. Install via: brew install verovio")
+    verovio_cli = _find_verovio()
+    if verovio_cli is not None:
+        return _render_to_svg(verovio_cli, str(musicxml_path), output_path, scale=scale)
 
-    return _render_to_svg(verovio, str(musicxml_path), output_path, scale=scale)
+    # Fall back to Python verovio
+    try:
+        import verovio as verovio_pkg
+        tk = verovio_pkg.toolkit()
+        with open(musicxml_path, "r", encoding="utf-8") as f:
+            xml_content = f.read()
+        tk.loadData(xml_content)
+        svg_data = tk.renderToSVG(1)
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(svg_data)
+        return output_path
+    except ImportError:
+        raise RuntimeError("Verovio not found. Install via: brew install verovio or pip install verovio")
+
+
+def _render_with_python_verovio(
+    musicxml_path: str,
+    output_path: str,
+    scale: int = 100,
+    dpi: int = 150,
+) -> None:
+    """Render MusicXML to PNG using the verovio Python package + cairosvg."""
+    try:
+        import verovio as verovio_pkg
+    except ImportError:
+        raise RuntimeError("verovio Python package not found. Install via: pip install verovio")
+
+    tk = verovio_pkg.toolkit()
+    with open(musicxml_path, "r", encoding="utf-8") as f:
+        xml_content = f.read()
+    tk.loadData(xml_content)
+
+    # Render all pages and combine vertically
+    page_count = tk.getPageCount()
+    page_images = []
+
+    for page_num in range(1, page_count + 1):
+        svg_data = tk.renderToSVG(page_num)
+        fd, tmp_svg = tempfile.mkstemp(suffix=".svg")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(svg_data)
+            # Convert SVG -> PNG via cairosvg or rsvg-convert
+            fd2, tmp_png = tempfile.mkstemp(suffix=".png")
+            os.close(fd2)
+            rsvg = _find_rsvg()
+            if rsvg:
+                result = subprocess.run(
+                    [rsvg, tmp_svg, "-o", tmp_png, f"--dpi-x={dpi}", f"--dpi-y={dpi}"],
+                    capture_output=True, text=True, timeout=30,
+                )
+                if result.returncode != 0:
+                    raise RuntimeError(f"rsvg-convert failed: {result.stderr}")
+            else:
+                import cairosvg
+                cairosvg.svg2png(url=tmp_svg, write_to=tmp_png, dpi=dpi)
+            page_images.append(Image.open(tmp_png).copy())
+        finally:
+            try:
+                os.unlink(tmp_svg)
+            except OSError:
+                pass
+
+    if not page_images:
+        raise RuntimeError("No pages rendered by verovio.")
+
+    if len(page_images) == 1:
+        page_images[0].save(output_path)
+    else:
+        total_width = max(img.width for img in page_images)
+        total_height = sum(img.height for img in page_images)
+        combined = Image.new("RGBA", (total_width, total_height), (255, 255, 255, 255))
+        y_offset = 0
+        for img in page_images:
+            combined.paste(img, (0, y_offset))
+            y_offset += img.height
+        combined.save(output_path)
 
 
 def _find_verovio() -> Optional[str]:
@@ -272,5 +344,10 @@ def _cleanup_svgs(svg_path: str):
 def get_available_renderer() -> str:
     """Return the name of the available renderer."""
     if _find_verovio():
-        return "verovio"
+        return "verovio-cli"
+    try:
+        import verovio  # noqa: F401
+        return "verovio-python"
+    except ImportError:
+        pass
     return "none"

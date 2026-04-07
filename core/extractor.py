@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-import anthropic
+from core import api
 
 from models.score import Score, Part
 from models.measure import Measure, KeySignature, TimeSignature, Clef, Barline
@@ -18,7 +18,9 @@ from models.note import Note, NoteType, Pitch, Accidental
 
 STRUCTURE_PROMPT = """You are an expert music notation reader. Analyze this sheet music image and extract the HIGH-LEVEL STRUCTURE first.
 
-Output a JSON object with this structure:
+Output ONLY a valid JSON object — no explanation, no preamble, no markdown fences. Start your response with `{` and end with `}`.
+
+Use this exact structure:
 {
   "title": "string or null",
   "composer": "string or null",
@@ -41,18 +43,18 @@ RULES:
 - For piano/keyboard: staves=2 (treble + bass).
 - Key signature fifths: negative=flats, positive=sharps (-2 = Bb major, 1 = G major, etc.)
 - If there are multiple pages visible, set page_count_estimate accordingly.
-- Identify the first and last notes in each part to help calibrate pitch reading later.
-- This is ONLY the structure pass. Do not extract individual notes yet."""
+- This is ONLY the structure pass. Do not extract individual notes yet.
+- YOUR ENTIRE RESPONSE MUST BE VALID JSON. No other text."""
 
 
 DETAIL_PROMPT = """You are an expert music notation reader performing a DETAILED note-by-note extraction.
 
+IMPORTANT: Output ONLY a valid JSON object. No explanation, no preamble, no markdown fences, no trailing text. Start your response with `{{` and end with `}}`.
+
 The score structure has already been identified:
 {structure_json}
 
-Now extract EVERY note, rest, and marking into the full JSON structure below.
-
-Be extremely precise with pitch identification.
+Now extract EVERY note, rest, and marking into the full JSON structure below. Be extremely precise.
 
 Output a JSON object with this exact structure:
 {{
@@ -88,11 +90,7 @@ Output a JSON object with this exact structure:
               "articulation": null,
               "lyrics": [],
               "fermata": false,
-              "grace": false,
-              "tuplet_actual": null,
-              "tuplet_normal": null,
-              "tuplet_start": false,
-              "tuplet_stop": false
+              "grace": false
             }}
           ],
           "barline_right": null,
@@ -108,29 +106,18 @@ CRITICAL RULES — READ CAREFULLY:
 1. COMPLETENESS: Extract EVERY note, rest, and marking. Missing even one note is a failure.
 
 2. DURATION MATH — SELF-VERIFICATION REQUIRED:
-   - "divisions" = number of divisions per quarter note. Use divisions=1 for simple scores.
-   - Duration values when divisions=1: whole=4, half=2, quarter=1, eighth=0.5 (use divisions=2 if you need eighths)
-   - Duration values when divisions=2: whole=8, half=4, quarter=2, eighth=1, sixteenth=0.5
-   - For scores with eighth notes or smaller, SET divisions=2 (or higher) so all durations are integers.
-   - DURATION MUST BE AN INTEGER. If you find yourself needing fractions, increase divisions.
+   - "divisions" = number of divisions per quarter note.
    - In each measure, the sum of non-chord note durations MUST equal:
      (time_signature.beats / time_signature.beat_type) * 4 * divisions
-   - Example: 4/4 with divisions=1 => total = 4. 4/4 with divisions=2 => total = 8.
-   - Example: 6/8 with divisions=2 => total = 6. 3/4 with divisions=1 => total = 3.
-   - AFTER writing each measure, verify: do the non-chord note durations sum to the correct total?
+   - Example: 4/4 with divisions=1 => total = 4. 6/8 with divisions=2 => total = 6.
+   - For EACH measure, after writing it, mentally verify: do the note durations sum correctly?
    - If they don't, fix them before moving on.
 
-3. PITCH ACCURACY — THIS IS THE MOST CRITICAL SECTION:
-   - Middle C = C4.
-   - TREBLE CLEF (G clef, line 2) staff lines from BOTTOM to TOP: E4, G4, B4, D5, F5
-   - TREBLE CLEF spaces from BOTTOM to TOP: F4, A4, C5, E5
-   - BASS CLEF (F clef, line 4) staff lines from BOTTOM to TOP: G2, B2, D3, F3, A3
-   - BASS CLEF spaces from BOTTOM to TOP: A2, C3, E3, G3
-   - Ledger lines BELOW treble staff: D4 (first ledger below), C4 (second ledger below = middle C)
-   - Ledger lines ABOVE bass staff: B3 (first ledger above), C4 (second ledger above = middle C)
-   - COUNT FROM THE REFERENCE LINE. In treble clef, the second line from bottom is G4. Work up or down from there.
+3. PITCH ACCURACY:
+   - Middle C = C4. The treble clef (G clef, line 2) places G4 on the second line.
+   - Bass clef (F clef, line 4) places F3 on the fourth line.
+   - Count lines and spaces carefully from the clef reference point.
    - Remember key signature accidentals apply to ALL octaves of that note unless cancelled by a natural.
-   - VERIFY EACH PITCH: After identifying a note, double-check by counting lines/spaces from the nearest reference point.
 
 4. KEY/TIME/CLEF RULES:
    - First measure MUST include time_signature, key_signature, and clef.
@@ -159,52 +146,13 @@ CRITICAL RULES — READ CAREFULLY:
     - First note: tie_start = true
     - Second note: tie_stop = true
 
-12. TUPLETS — CRITICAL FOR CORRECT DURATION MATH:
-    A tuplet is a group of notes played in the time normally occupied by fewer (or more) notes.
-    The most common is the TRIPLET: 3 notes in the time of 2 (e.g., three eighth notes in a quarter beat).
-
-    Recognizing tuplets visually:
-    - A bracket or beam with a small number (e.g., "3") above or below the group
-    - Three beamed eighth notes where you'd normally expect two (triplet eighths)
-    - Five notes where you'd expect four (quintuplet), etc.
-
-    Fields to set for every note inside a tuplet:
-    - "tuplet_actual": the number of notes in the group (e.g., 3 for a triplet)
-    - "tuplet_normal": the number of notes they replace (e.g., 2 for a triplet)
-    - "tuplet_start": true ONLY on the first note of the group
-    - "tuplet_stop": true ONLY on the last note of the group
-    - Middle notes: both false
-
-    DURATION CALCULATION FOR TUPLETS — MUST BE INTEGER:
-    The duration of each note in a tuplet = (normal_type_duration × tuplet_normal) / tuplet_actual
-
-    Examples with divisions=6 (quarter=6, eighth=3):
-    - Triplet eighth (3:2): duration = (3 × 2) / 3 = 2
-    - Triplet quarter (3:2): duration = (6 × 2) / 3 = 4
-    - Quintuplet sixteenth (5:4), divisions=20 (sixteenth=5): duration = (5 × 4) / 5 = 4
-
-    CHOOSING DIVISIONS FOR TUPLET SCORES:
-    - For triplet eighths: use divisions=6 (quarter=6, triplet-eighth=2)
-    - For triplet sixteenths: use divisions=12 (quarter=12, sixteenth=3, triplet-sixteenth=2)
-    - For quintuplet eighths (5:4): use divisions=20 (quarter=20, eighth=10, quintuplet-eighth=8)
-    - The key: divisions must be divisible by (tuplet_actual / gcd(tuplet_actual, tuplet_normal × normal_type_per_quarter))
-    - Simplest rule: pick divisions so that every duration in the measure is a whole integer.
-
-    MEASURE SUM WITH TUPLETS:
-    - The three notes of a triplet together still sum to one normal beat.
-    - Example: triplet eighth (dur=2) × 3 = 6 = one quarter. A quarter note gets dur=6.
-    - Example in 3/4, divisions=6: full measure = 18. Triplet + quarter + quarter = 6 + 6 + 6 = 18. ✓
-
-    MULTI-VOICE in single-staff measures:
-    - Use voice=1 for the upper voice, voice=2 for the lower voice.
-    - Both voices still sum to the full measure duration independently.
-    - When you see stems-up notes AND stems-down notes on the same staff, that's multi-voice.
-
 FINAL SELF-CHECK: After completing extraction, verify:
 - Total measure count matches what you see in the image
 - Each measure's note durations sum to the time signature
 - No notes are missing from any measure
-- Pitches are correct relative to the clef and key signature"""
+- Pitches are correct relative to the clef and key signature
+
+REMINDER: Your entire response must be a single valid JSON object. Do NOT include any text before `{{` or after the final `}}`."""
 
 
 # ---------------------------------------------------------------------------
@@ -253,9 +201,9 @@ def encode_pdf_pages(pdf_path: str) -> list[tuple[str, str]]:
 
 def extract_from_image(
     image_path: str,
-    model: str = "claude-sonnet-4-5-20250929",
-    use_thinking: bool = False,
-    two_pass: bool = False,
+    model: str = "claude-sonnet-4-6",
+    use_thinking: bool = True,
+    two_pass: bool = True,
 ) -> Score:
     """Extract musical score from an image using Claude Vision.
 
@@ -268,7 +216,7 @@ def extract_from_image(
     Returns:
         Parsed Score object.
     """
-    client = anthropic.Anthropic()
+    # Client managed by core.api with fallback
     image_data, media_type = encode_image(image_path)
 
     image_block = {
@@ -281,17 +229,19 @@ def extract_from_image(
     }
 
     if two_pass:
-        return _extract_two_pass(client, image_block, model, use_thinking)
+        return _extract_two_pass(image_block, model, use_thinking)
     else:
-        return _extract_single_pass(client, image_block, model, use_thinking)
+        return _extract_single_pass(image_block, model, use_thinking)
 
 
 # ---------------------------------------------------------------------------
 # Two-pass extraction (structure first, then details)
 # ---------------------------------------------------------------------------
 
+# Streaming handled by core.api.stream_and_collect
+
+
 def _extract_two_pass(
-    client: anthropic.Anthropic,
     image_block: dict,
     model: str,
     use_thinking: bool,
@@ -299,18 +249,18 @@ def _extract_two_pass(
     """Two-pass extraction: structure first, then note-by-note details."""
 
     # --- Pass 1: Extract structure ---
-    structure_msg = client.messages.create(
-        model=model,
-        max_tokens=4000,
-        messages=[
+    structure_kwargs = {
+        "model": model,
+        "max_tokens": 4000,
+        "messages": [
             {
                 "role": "user",
                 "content": [image_block, {"type": "text", "text": STRUCTURE_PROMPT}],
             }
         ],
-    )
+    }
 
-    structure_text = structure_msg.content[0].text
+    structure_text = api.stream_and_collect(**structure_kwargs)
     structure_json_str = _extract_json_from_response(structure_text)
     structure_data = json.loads(structure_json_str)
 
@@ -337,13 +287,10 @@ def _extract_two_pass(
             "type": "enabled",
             "budget_tokens": 10000,
         }
+        # Extended thinking requires higher max_tokens
         api_kwargs["max_tokens"] = 32000
 
-    # Use streaming to handle extended thinking timeouts
-    detail_msg = _create_message_streaming(client, api_kwargs)
-
-    # Extract text content (skip thinking blocks)
-    response_text = _get_text_from_response(detail_msg)
+    response_text = api.stream_and_collect(**api_kwargs)
     json_str = _extract_json_from_response(response_text)
     data = json.loads(json_str)
 
@@ -355,7 +302,6 @@ def _extract_two_pass(
 # ---------------------------------------------------------------------------
 
 def _extract_single_pass(
-    client: anthropic.Anthropic,
     image_block: dict,
     model: str,
     use_thinking: bool,
@@ -386,8 +332,7 @@ def _extract_single_pass(
         }
         api_kwargs["max_tokens"] = 32000
 
-    message = _create_message_streaming(client, api_kwargs)
-    response_text = _get_text_from_response(message)
+    response_text = api.stream_and_collect(**api_kwargs)
     json_str = _extract_json_from_response(response_text)
     data = json.loads(json_str)
 
@@ -398,15 +343,9 @@ def _extract_single_pass(
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _create_message_streaming(client: anthropic.Anthropic, api_kwargs: dict):
-    """Create a message using streaming to avoid timeout on extended thinking."""
-    with client.messages.stream(**api_kwargs) as stream:
-        return stream.get_final_message()
-
-
 def _model_supports_thinking(model: str) -> bool:
     """Check if the model supports extended thinking."""
-    thinking_models = ["claude-sonnet-4-5", "claude-3-7-sonnet"]
+    thinking_models = ["claude-sonnet-4-5", "claude-sonnet-4-6", "claude-3-7-sonnet"]
     return any(m in model for m in thinking_models)
 
 
@@ -420,12 +359,57 @@ def _get_text_from_response(message) -> str:
 
 
 def _extract_json_from_response(text: str) -> str:
-    """Extract JSON from a response that may be wrapped in markdown code blocks."""
-    if "```json" in text:
-        return text.split("```json")[1].split("```")[0].strip()
-    elif "```" in text:
-        return text.split("```")[1].split("```")[0].strip()
-    return text.strip()
+    """Extract JSON from a response that may have preamble text or markdown fences.
+
+    Strategy (in order):
+    1. Strip markdown fences (```json ... ``` or ``` ... ```)
+    2. Find the outermost { } or [ ] by bracket scanning (handles preamble/postamble)
+    3. Fall back to the raw stripped text
+    """
+    stripped = text.strip()
+
+    # 1. Markdown fence extraction
+    if "```json" in stripped:
+        candidate = stripped.split("```json")[1].split("```")[0].strip()
+        if candidate:
+            return candidate
+    if "```" in stripped:
+        candidate = stripped.split("```")[1].split("```")[0].strip()
+        if candidate:
+            return candidate
+
+    # 2. Bracket scan: find first { or [ and its matching closer
+    for start_char, end_char in [('{', '}'), ('[', ']')]:
+        start_idx = stripped.find(start_char)
+        if start_idx == -1:
+            continue
+        depth = 0
+        in_string = False
+        escape_next = False
+        for i in range(start_idx, len(stripped)):
+            ch = stripped[i]
+            if escape_next:
+                escape_next = False
+                continue
+            if ch == '\\' and in_string:
+                escape_next = True
+                continue
+            if ch == '"' and not escape_next:
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch == start_char:
+                depth += 1
+            elif ch == end_char:
+                depth -= 1
+                if depth == 0:
+                    return stripped[start_idx:i + 1]
+        # If we reach here without finding the closer, return from start to end
+        return stripped[start_idx:]
+
+    # 3. Raw fallback
+    return stripped
 
 
 # ---------------------------------------------------------------------------
@@ -546,8 +530,4 @@ def _build_note(data: dict) -> Note:
         lyrics=data.get("lyrics", []),
         fermata=data.get("fermata", False),
         grace=data.get("grace", False),
-        tuplet_actual=data.get("tuplet_actual"),
-        tuplet_normal=data.get("tuplet_normal"),
-        tuplet_start=data.get("tuplet_start", False),
-        tuplet_stop=data.get("tuplet_stop", False),
     )

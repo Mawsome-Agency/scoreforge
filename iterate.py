@@ -17,6 +17,9 @@ import json
 import os
 import sys
 import time
+
+from dotenv import load_dotenv
+load_dotenv()
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -72,7 +75,9 @@ def iterate_fixture(
     best_xml_path = None
     current_xml_content = None
 
-    for iteration in range(1, max_iterations + 1):
+    iteration = 0
+    while iteration < max_iterations:
+        iteration += 1
         console.print(f"\n  [bold]--- Iteration {iteration}/{max_iterations} ---[/bold]")
         iter_start = time.time()
 
@@ -205,8 +210,33 @@ def iterate_fixture(
                 break
 
         except Exception as e:
-            iter_result["error"] = str(e)
-            console.print(f"  [red]Error: {e}[/red]")
+            error_str = str(e)
+            is_rate_limit = any(s in error_str.lower() for s in [
+                '429', 'rate limit', 'usage limit', 'rate_limit',
+            ])
+
+            if is_rate_limit:
+                console.print(f"  [yellow]Rate limited — not counting this iteration. Waiting...[/yellow]")
+                # Parse reset time
+                import re as _re
+                reset_match = _re.search(r'reset[^"]*?(\d{4}-\d{2}-\d{2}[\sT]\d{2}:\d{2}:\d{2})', error_str)
+                if reset_match:
+                    from datetime import datetime as _dt, timezone as _tz
+                    try:
+                        reset_dt = _dt.fromisoformat(reset_match.group(1).replace(' ', 'T')).replace(tzinfo=_tz.utc)
+                        wait_secs = max(0, (reset_dt - _dt.now(_tz.utc)).total_seconds()) + 10
+                    except ValueError:
+                        wait_secs = 300
+                else:
+                    wait_secs = 300
+                console.print(f"  [yellow]Waiting {wait_secs:.0f}s for rate limit reset...[/yellow]")
+                time.sleep(min(wait_secs, 3600))  # cap at 1 hour
+                # Don't count this iteration — decrement to retry
+                iteration -= 1
+                continue
+            else:
+                iter_result["error"] = error_str
+                console.print(f"  [red]Error: {e}[/red]")
 
         iter_result["duration_seconds"] = time.time() - iter_start
         iterations.append(iter_result)

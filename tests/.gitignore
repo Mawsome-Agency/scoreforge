@@ -1,0 +1,16 @@
+# Generated test outputs
+output/
+results/
+
+# Generated baseline reports
+BASELINE_REPORT.md
+BASELINE_REPORT.json
+
+# Test artifacts
+*.png
+*.pdf
+
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/

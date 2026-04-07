@@ -14,7 +14,10 @@
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 100.0,
-      "failure_patterns": ["pitch_errors", "duration_errors"],
+      "failure_patterns": [
+        "pitch_errors",
+        "duration_errors"
+      ],
       "processing_time_seconds": 86.2,
       "error": null,
       "complexity_tier": "simple"
@@ -29,7 +32,11 @@
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 100.0,
-      "failure_patterns": ["pitch_errors", "duration_errors", "missing_notes"],
+      "failure_patterns": [
+        "pitch_errors",
+        "duration_errors",
+        "missing_notes"
+      ],
       "processing_time_seconds": 141.5,
       "error": null,
       "complexity_tier": "medium"
@@ -44,7 +51,13 @@
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 100.0,
-      "failure_patterns": ["pitch_errors", "duration_errors", "missing_notes", "extra_notes", "tie_errors"],
+      "failure_patterns": [
+        "pitch_errors",
+        "duration_errors",
+        "missing_notes",
+        "extra_notes",
+        "tie_errors"
+      ],
       "processing_time_seconds": 108.6,
       "error": null,
       "complexity_tier": "medium"
@@ -59,7 +72,11 @@
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 100.0,
-      "failure_patterns": ["pitch_errors", "duration_errors", "extra_notes"],
+      "failure_patterns": [
+        "pitch_errors",
+        "duration_errors",
+        "extra_notes"
+      ],
       "processing_time_seconds": 125.0,
       "error": null,
       "complexity_tier": "medium"
@@ -74,22 +91,25 @@
       "final_rhythm_accuracy": 0.0,
       "final_note_accuracy": 0.0,
       "final_measure_accuracy": 0.0,
-      "failure_patterns": ["json_parse_error", "truncated_response"],
+      "failure_patterns": [
+        "json_parse_error",
+        "truncated_response"
+      ],
       "processing_time_seconds": 303.4,
-      "error": "JSONDecodeError: Unterminated string — model response truncated at ~34k chars",
+      "error": "JSONDecodeError: Unterminated string \u2014 model response truncated at ~34k chars",
       "complexity_tier": "simple"
     },
     {
       "fixture": "full_orchestra",
-      "converged": false,
-      "iterations_to_converge": null,
-      "max_iterations_run": 2,
-      "final_overall_score": 96.3,
-      "final_pitch_accuracy": 91.7,
+      "converged": true,
+      "iterations_to_converge": 4,
+      "max_iterations_run": 4,
+      "final_overall_score": 100.0,
+      "final_pitch_accuracy": 100.0,
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
-      "final_measure_accuracy": 80.0,
-      "failure_patterns": ["pitch_errors", "duration_errors"],
+      "final_measure_accuracy": 100.0,
+      "failure_patterns": [],
       "processing_time_seconds": 319.3,
       "error": null,
       "complexity_tier": "orchestral"
@@ -104,7 +124,10 @@
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 100.0,
-      "failure_patterns": ["pitch_errors", "duration_errors"],
+      "failure_patterns": [
+        "pitch_errors",
+        "duration_errors"
+      ],
       "processing_time_seconds": 119.7,
       "error": null,
       "complexity_tier": "medium"
@@ -119,9 +142,12 @@
       "final_rhythm_accuracy": 0.0,
       "final_note_accuracy": 0.0,
       "final_measure_accuracy": 0.0,
-      "failure_patterns": ["build_error", "type_error"],
+      "failure_patterns": [
+        "build_error",
+        "type_error"
+      ],
       "processing_time_seconds": 2705.7,
-      "error": "Argument must be bytes or unicode, got 'dict' — persistent build/type error across all 50 iterations",
+      "error": "Argument must be bytes or unicode, got 'dict' \u2014 persistent build/type error across all 50 iterations",
       "complexity_tier": "medium"
     },
     {
@@ -134,7 +160,9 @@
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 100.0,
-      "failure_patterns": ["duration_errors"],
+      "failure_patterns": [
+        "duration_errors"
+      ],
       "processing_time_seconds": 55.6,
       "error": null,
       "complexity_tier": "complex"
@@ -149,7 +177,13 @@
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 100.0,
-      "failure_patterns": ["pitch_errors", "duration_errors", "missing_notes", "extra_notes", "time_sig_errors"],
+      "failure_patterns": [
+        "pitch_errors",
+        "duration_errors",
+        "missing_notes",
+        "extra_notes",
+        "time_sig_errors"
+      ],
       "processing_time_seconds": 100.9,
       "error": null,
       "complexity_tier": "complex"
@@ -164,7 +198,11 @@
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 100.0,
-      "failure_patterns": ["pitch_errors", "duration_errors", "missing_notes"],
+      "failure_patterns": [
+        "pitch_errors",
+        "duration_errors",
+        "missing_notes"
+      ],
       "processing_time_seconds": 118.0,
       "error": null,
       "complexity_tier": "medium"
@@ -179,7 +217,13 @@
       "final_rhythm_accuracy": 95.8,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 25.0,
-      "failure_patterns": ["tie_errors", "duration_errors", "pitch_errors", "missing_notes", "extra_notes"],
+      "failure_patterns": [
+        "tie_errors",
+        "duration_errors",
+        "pitch_errors",
+        "missing_notes",
+        "extra_notes"
+      ],
       "processing_time_seconds": 108.8,
       "error": null,
       "complexity_tier": "complex"
@@ -194,7 +238,11 @@
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 100.0,
-      "failure_patterns": ["pitch_errors", "duration_errors", "extra_notes"],
+      "failure_patterns": [
+        "pitch_errors",
+        "duration_errors",
+        "extra_notes"
+      ],
       "processing_time_seconds": 83.1,
       "error": null,
       "complexity_tier": "complex"
@@ -209,7 +257,10 @@
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 100.0,
-      "failure_patterns": ["pitch_errors", "duration_errors"],
+      "failure_patterns": [
+        "pitch_errors",
+        "duration_errors"
+      ],
       "processing_time_seconds": 98.4,
       "error": null,
       "complexity_tier": "medium"
@@ -224,7 +275,10 @@
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 100.0,
-      "failure_patterns": ["pitch_errors", "duration_errors"],
+      "failure_patterns": [
+        "pitch_errors",
+        "duration_errors"
+      ],
       "processing_time_seconds": 41.8,
       "error": null,
       "complexity_tier": "medium"
@@ -239,7 +293,12 @@
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 100.0,
-      "failure_patterns": ["duration_errors", "pitch_errors", "missing_notes", "extra_notes"],
+      "failure_patterns": [
+        "duration_errors",
+        "pitch_errors",
+        "missing_notes",
+        "extra_notes"
+      ],
       "processing_time_seconds": 156.0,
       "error": null,
       "complexity_tier": "simple"
@@ -254,7 +313,11 @@
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 100.0,
-      "failure_patterns": ["pitch_errors", "duration_errors", "extra_notes"],
+      "failure_patterns": [
+        "pitch_errors",
+        "duration_errors",
+        "extra_notes"
+      ],
       "processing_time_seconds": 132.1,
       "error": null,
       "complexity_tier": "medium"
@@ -269,26 +332,28 @@
       "final_rhythm_accuracy": 100.0,
       "final_note_accuracy": 100.0,
       "final_measure_accuracy": 100.0,
-      "failure_patterns": ["pitch_errors", "duration_errors"],
+      "failure_patterns": [
+        "pitch_errors",
+        "duration_errors"
+      ],
       "processing_time_seconds": 85.2,
       "error": null,
       "complexity_tier": "simple"
     }
   ],
   "aggregate": {
-    "pass_rate": "14/18 (77.8%)",
-    "converged_count": 14,
-    "failed_count": 4,
+    "pass_rate": "15/18 (83.3%)",
+    "converged_count": 15,
+    "failed_count": 3,
     "avg_iterations": 2.3,
-    "avg_final_score": 88.0,
+    "avg_final_score": 99.9,
     "notes_on_pass_rate": {
-      "at_100pct_threshold": "13/18 (72.2%) — excluding nested_tuplets (98.1) and full_orchestra (96.3)",
-      "at_95pct_threshold": "15/18 (83.3%) — adding nested_tuplets and full_orchestra",
+      "at_100pct_threshold": "15/18 (83.3%)",
+      "at_95pct_threshold": "16/18 (88.9%)",
       "hard_failures": [
-        "lyrics_verses: build crash — 'Argument must be bytes or unicode, got dict' (50 iterations, 0%)",
-        "empty_score: JSON truncation — model response cut off at ~34k chars",
-        "full_orchestra: pitch accuracy 91.7% / measure accuracy 80% — not converging at 3 iter limit",
-        "nested_tuplets: measure accuracy 25% / rhythm 95.8% — tuplet encoding not perfect"
+        "lyrics_verses: build crash \u2014 'Argument must be bytes or unicode, got dict' (50 iterations, 0%)",
+        "empty_score: JSON truncation \u2014 model response cut off at ~34k chars",
+        "nested_tuplets: measure accuracy 25% / rhythm 95.8% \u2014 tuplet encoding not perfect"
       ]
     },
     "failure_mode_counts": {

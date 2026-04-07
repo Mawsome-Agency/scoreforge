@@ -465,9 +465,16 @@ def _extract_two_pass(
     # --- Detect suspicious structure responses (hallucination check) ---
     total_measures = sum(p.get("measure_count", 0) for p in structure_data.get("parts", []))
     page_count = structure_data.get("page_count_estimate", 1)
+    part_count = len(structure_data.get("parts", []))
 
     # If structure claims many measures on single-page image, likely hallucinating
-    is_suspicious = total_measures > 5 or (total_measures > 2 and page_count == 1)
+    # Adjust threshold for orchestral/multi-part scores:
+    # - Single-part scores: > 8 measures on 1 page is suspicious
+    # - Multi-part scores: Allow more measures (e.g., orchestral with 30 measures across 15 parts)
+    is_suspicious = (
+        (part_count <= 2 and total_measures > 8) or  # Single-part score with excessive measures
+        (total_measures > 50)  # Any score with >50 measures on 1 page
+    )
 
     if is_suspicious:
         print(f"[ScoreForge] Suspicious structure: {total_measures} measures on single page - re-running with simpler settings", flush=True)

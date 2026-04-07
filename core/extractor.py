@@ -43,6 +43,7 @@ RULES:
 - For piano/keyboard: staves=2 (treble + bass).
 - Key signature fifths: negative=flats, positive=sharps (-2 = Bb major, 1 = G major, etc.)
 - If there are multiple pages visible, set page_count_estimate accordingly.
+- TIME SIGNATURE DETECTION: Time signature numerals appear AT THE VERY BEGINNING OF THE STAFF, BEFORE any notes or rests. They are vertically stacked (top/bottom numbers). Tuplet bracket numerals (3, 5, 6, etc.) appear ABOVE OR BELOW beams spanning multiple notes. DO NOT confuse tuplet numerals with time signature numerals.
 - This is ONLY the structure pass. Do not extract individual notes yet.
 - YOUR ENTIRE RESPONSE MUST BE VALID JSON. No other text."""
 
@@ -188,6 +189,7 @@ CRITICAL RULES — READ CAREFULLY:
 5. KEY/TIME/CLEF RULES:
    - First measure MUST include time_signature, key_signature, and clef.
    - Subsequent measures: include these ONLY when they CHANGE.
+   - CRITICAL: Time signature numerals appear BEFORE ANY notes at the staff's beginning (e.g., 4 over 4 for 4/4). Tuplet bracket numerals (3, 5, 6, etc.) appear ABOVE/BELOW beams spanning notes. DO NOT confuse them. The time signature is ALWAYS at the very start of the staff before notes begin.
 
 6. CHORD NOTATION:
    - First note in a chord: is_chord = false

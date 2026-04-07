@@ -78,6 +78,13 @@ BUILT_IN_TESTS = [
         difficulty="hard",
         tags=["compound_meter", "ties", "accidentals", "beams"],
     ),
+    TestCase(
+        name="nested_tuplets",
+        musicxml_path=str(FIXTURE_DIR / "nested_tuplets.musicxml"),
+        description="C major, 3/4, 4 measures, 2-voice counterpoint with triplet tuplets",
+        difficulty="hard",
+        tags=["tuplets", "multi_voice", "triplets", "time_modification"],
+    ),
 ]
 
 

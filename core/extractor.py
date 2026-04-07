@@ -88,7 +88,11 @@ Output a JSON object with this exact structure:
               "articulation": null,
               "lyrics": [],
               "fermata": false,
-              "grace": false
+              "grace": false,
+              "tuplet_actual": null,
+              "tuplet_normal": null,
+              "tuplet_start": false,
+              "tuplet_stop": false
             }}
           ],
           "barline_right": null,
@@ -154,6 +158,47 @@ CRITICAL RULES — READ CAREFULLY:
 11. TIES: A curved line connecting two notes of the SAME pitch across beats or barlines.
     - First note: tie_start = true
     - Second note: tie_stop = true
+
+12. TUPLETS — CRITICAL FOR CORRECT DURATION MATH:
+    A tuplet is a group of notes played in the time normally occupied by fewer (or more) notes.
+    The most common is the TRIPLET: 3 notes in the time of 2 (e.g., three eighth notes in a quarter beat).
+
+    Recognizing tuplets visually:
+    - A bracket or beam with a small number (e.g., "3") above or below the group
+    - Three beamed eighth notes where you'd normally expect two (triplet eighths)
+    - Five notes where you'd expect four (quintuplet), etc.
+
+    Fields to set for every note inside a tuplet:
+    - "tuplet_actual": the number of notes in the group (e.g., 3 for a triplet)
+    - "tuplet_normal": the number of notes they replace (e.g., 2 for a triplet)
+    - "tuplet_start": true ONLY on the first note of the group
+    - "tuplet_stop": true ONLY on the last note of the group
+    - Middle notes: both false
+
+    DURATION CALCULATION FOR TUPLETS — MUST BE INTEGER:
+    The duration of each note in a tuplet = (normal_type_duration × tuplet_normal) / tuplet_actual
+
+    Examples with divisions=6 (quarter=6, eighth=3):
+    - Triplet eighth (3:2): duration = (3 × 2) / 3 = 2
+    - Triplet quarter (3:2): duration = (6 × 2) / 3 = 4
+    - Quintuplet sixteenth (5:4), divisions=20 (sixteenth=5): duration = (5 × 4) / 5 = 4
+
+    CHOOSING DIVISIONS FOR TUPLET SCORES:
+    - For triplet eighths: use divisions=6 (quarter=6, triplet-eighth=2)
+    - For triplet sixteenths: use divisions=12 (quarter=12, sixteenth=3, triplet-sixteenth=2)
+    - For quintuplet eighths (5:4): use divisions=20 (quarter=20, eighth=10, quintuplet-eighth=8)
+    - The key: divisions must be divisible by (tuplet_actual / gcd(tuplet_actual, tuplet_normal × normal_type_per_quarter))
+    - Simplest rule: pick divisions so that every duration in the measure is a whole integer.
+
+    MEASURE SUM WITH TUPLETS:
+    - The three notes of a triplet together still sum to one normal beat.
+    - Example: triplet eighth (dur=2) × 3 = 6 = one quarter. A quarter note gets dur=6.
+    - Example in 3/4, divisions=6: full measure = 18. Triplet + quarter + quarter = 6 + 6 + 6 = 18. ✓
+
+    MULTI-VOICE in single-staff measures:
+    - Use voice=1 for the upper voice, voice=2 for the lower voice.
+    - Both voices still sum to the full measure duration independently.
+    - When you see stems-up notes AND stems-down notes on the same staff, that's multi-voice.
 
 FINAL SELF-CHECK: After completing extraction, verify:
 - Total measure count matches what you see in the image
@@ -501,4 +546,8 @@ def _build_note(data: dict) -> Note:
         lyrics=data.get("lyrics", []),
         fermata=data.get("fermata", False),
         grace=data.get("grace", False),
+        tuplet_actual=data.get("tuplet_actual"),
+        tuplet_normal=data.get("tuplet_normal"),
+        tuplet_start=data.get("tuplet_start", False),
+        tuplet_stop=data.get("tuplet_stop", False),
     )

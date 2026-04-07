@@ -61,8 +61,10 @@ class Note:
     slur_stop: bool = False
     dynamic: Optional[str] = None  # pp, p, mp, mf, f, ff, etc.
     articulation: Optional[str] = None  # staccato, accent, tenuto, etc.
-    tuplet_actual: Optional[int] = None  # e.g., 3 for triplet
-    tuplet_normal: Optional[int] = None  # e.g., 2 for triplet
+    tuplet_actual: Optional[int] = None  # e.g., 3 for triplet (3 notes in time of 2)
+    tuplet_normal: Optional[int] = None  # e.g., 2 for triplet (normal note count)
+    tuplet_start: bool = False  # first note of a tuplet group — emit <tuplet type="start">
+    tuplet_stop: bool = False   # last note of a tuplet group — emit <tuplet type="stop">
     lyrics: list[str] = field(default_factory=list)
     fermata: bool = False
     grace: bool = False

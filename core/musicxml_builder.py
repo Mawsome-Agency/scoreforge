@@ -101,9 +101,8 @@ def _build_measure(parent: etree._Element, measure: Measure, part: Part):
         if measure.barline_left.repeat_direction:
             etree.SubElement(bl, "repeat", direction=measure.barline_left.repeat_direction)
 
-    # Notes
-    for note in measure.notes:
-        _build_note(m_elem, note)
+    # Notes — group by voice to emit <backup> elements for multi-voice measures
+    _build_notes_multivoice(m_elem, measure.notes)
 
     # Right barline
     if measure.barline_right:
@@ -111,6 +110,43 @@ def _build_measure(parent: etree._Element, measure: Measure, part: Part):
         etree.SubElement(bl, "bar-style").text = measure.barline_right.style
         if measure.barline_right.repeat_direction:
             etree.SubElement(bl, "repeat", direction=measure.barline_right.repeat_direction)
+
+
+def _build_notes_multivoice(parent: etree._Element, notes: list):
+    """Output notes with <backup> elements inserted between voice groups.
+
+    Single-voice measures emit notes sequentially (no backup).
+    Multi-voice measures group by voice number, emit each group, then
+    insert <backup> to rewind to the start of the measure for the next voice.
+    """
+    # Determine which voices are present
+    voices_seen = []
+    for note in notes:
+        if note.voice not in voices_seen:
+            voices_seen.append(note.voice)
+
+    if len(voices_seen) <= 1:
+        # Single voice — simple sequential output
+        for note in notes:
+            _build_note(parent, note)
+        return
+
+    # Group notes by voice (preserving original insertion order within each voice)
+    from collections import defaultdict
+    voice_groups: dict[int, list] = defaultdict(list)
+    for note in notes:
+        voice_groups[note.voice].append(note)
+
+    for idx, voice_num in enumerate(voices_seen):
+        voice_notes = voice_groups[voice_num]
+        for note in voice_notes:
+            _build_note(parent, note)
+
+        # After every voice except the last, back up to the measure start
+        if idx < len(voices_seen) - 1:
+            consumed = sum(n.duration for n in voice_notes if not n.is_chord)
+            backup_elem = etree.SubElement(parent, "backup")
+            etree.SubElement(backup_elem, "duration").text = str(consumed)
 
 
 def _build_note(parent: etree._Element, note: Note):
@@ -148,6 +184,12 @@ def _build_note(parent: etree._Element, note: Note):
     for _ in range(note.dot_count):
         etree.SubElement(n_elem, "dot")
 
+    # Time modification (tuplet ratio) — required on every note inside a tuplet
+    if note.tuplet_actual and note.tuplet_normal:
+        tm = etree.SubElement(n_elem, "time-modification")
+        etree.SubElement(tm, "actual-notes").text = str(note.tuplet_actual)
+        etree.SubElement(tm, "normal-notes").text = str(note.tuplet_normal)
+
     # Accidental
     if note.pitch and note.pitch.accidental:
         etree.SubElement(n_elem, "accidental").text = note.pitch.accidental.value
@@ -166,6 +208,7 @@ def _build_note(parent: etree._Element, note: Note):
         note.tie_start, note.tie_stop,
         note.slur_start, note.slur_stop,
         note.fermata, note.articulation,
+        note.tuplet_start, note.tuplet_stop,
     ])
     if has_notations:
         notations = etree.SubElement(n_elem, "notations")
@@ -185,6 +228,10 @@ def _build_note(parent: etree._Element, note: Note):
         if note.articulation:
             artic = etree.SubElement(notations, "articulations")
             etree.SubElement(artic, note.articulation)
+        if note.tuplet_start:
+            etree.SubElement(notations, "tuplet", type="start", number="1")
+        if note.tuplet_stop:
+            etree.SubElement(notations, "tuplet", type="stop", number="1")
 
     # Dynamics (as direction before the note, but we attach it here for simplicity)
     if note.dynamic:

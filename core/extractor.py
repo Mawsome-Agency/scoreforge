@@ -268,18 +268,24 @@ def _calculate_thinking_budget(complexity: dict) -> int:
     - Empty/simple scores: 2000 tokens max
     - Moderate: 5000-8000 tokens
     - Complex: 10000 tokens max
+    - Orchestral/Very complex: 16000-20000 tokens max for large scores
     """
     if complexity["is_trivial"]:
         return 2000  # Minimal thinking for empty scores
 
     note_estimate = complexity["note_estimate"]
+    complexity_score = complexity["complexity_score"]
 
     if note_estimate < 10:
         return 4000  # Simple scores
     elif note_estimate < 30:
         return 7000  # Moderate scores
-    else:
+    elif note_estimate < 80:
         return 10000  # Complex scores
+    else:
+        # Very complex/orchestral scores: higher budget
+        # Use 16000-20000 for scores with 80+ notes
+        return 16000 + min(4000, (note_estimate - 80) * 50)
 
 
 def _generate_empty_musicxml(title: str = None, composer: str = None) -> Score:
@@ -510,8 +516,15 @@ def _extract_two_pass(
             "budget_tokens": thinking_budget,
         }
         # Scale max_tokens based on thinking budget
-        api_kwargs["max_tokens"] = thinking_budget * 3
-        print(f"[ScoreForge] Using {thinking_budget} thinking tokens for complexity score {complexity['complexity_score']}", flush=True)
+        # For very complex scores, use a higher multiplier to ensure all parts are captured
+        note_estimate = complexity.get("note_estimate", 0)
+        if note_estimate >= 80:
+            # Orchestral/large scores: use 4x multiplier for max_tokens
+            api_kwargs["max_tokens"] = thinking_budget * 4
+            print(f"[ScoreForge] Orchestral score ({note_estimate} notes) - using {thinking_budget} thinking tokens, max_tokens={thinking_budget * 4}", flush=True)
+        else:
+            api_kwargs["max_tokens"] = thinking_budget * 3
+            print(f"[ScoreForge] Using {thinking_budget} thinking tokens for complexity score {complexity['complexity_score']}", flush=True)
 
     # --- Extract with JSONDecodeError recovery (Fix A) ---
     try:
@@ -519,14 +532,24 @@ def _extract_two_pass(
         json_str = _extract_json_from_response(response_text)
         data = json.loads(json_str)
     except json.JSONDecodeError as e:
-        # Truncation recovery: retry without thinking and with lower max_tokens
+        # Truncation recovery: retry without thinking and with appropriate max_tokens
         error_msg = str(e)
         if "Unterminated" in error_msg or "Expecting" in error_msg:
-            print(f"[ScoreForge] JSONDecodeError on response - retrying without extended thinking", flush=True)
-            # Retry without thinking, lower max_tokens for quick response
+            print(f"[ScoreForge] JSONDecodeError on response - retrying with recovery", flush=True)
+            # Retry without thinking
             recovery_kwargs = api_kwargs.copy()
             recovery_kwargs.pop("thinking", None)  # Remove extended thinking
-            recovery_kwargs["max_tokens"] = 8000  # Reduced budget for simple scores
+
+            # Use appropriate max_tokens based on score complexity
+            note_estimate = complexity.get("note_estimate", 0)
+            if note_estimate >= 80:
+                # Large/orchestral score: use higher max_tokens without thinking
+                recovery_kwargs["max_tokens"] = 24000
+                print(f"[ScoreForge] Orchestral score ({note_estimate} notes) - retrying with max_tokens=24000 (no thinking)", flush=True)
+            else:
+                # Smaller scores: reduce max_tokens for quick response
+                recovery_kwargs["max_tokens"] = 12000
+                print(f"[ScoreForge] Retrying with max_tokens=12000 (no thinking)", flush=True)
 
             recovery_response = api.stream_and_collect(**recovery_kwargs)
             json_str = _extract_json_from_response(recovery_response)

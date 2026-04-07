@@ -524,3 +524,135 @@ def main(fixture, model, no_api, list_fixtures, corpus, corpus_only):
 
 if __name__ == "__main__":
     main()
+
+
+# ---------------------------------------------------------------------------
+# Integration with validate_baseline.py
+# ---------------------------------------------------------------------------
+
+def get_baseline_metrics(model: str = "claude-sonnet-4-6", skip_api: bool = False) -> dict:
+    """Get baseline metrics for all fixtures.
+
+    This function is designed to be imported by validate_baseline.py
+    to provide a unified interface for running baseline validation.
+
+    Args:
+        model: Claude model to use for extraction
+        skip_api: If True, skip API calls and only test infrastructure
+
+    Returns:
+        Dict with aggregate metrics and per-fixture results
+    """
+    tests = discover_fixtures()
+    results = run_all_tests(tests, model=model, skip_api=skip_api)
+
+    total = len(results)
+    passed = sum(1 for r in results if r.passed)
+    failed = sum(1 for r in results if not r.passed and r.compare_ok)
+    errors = sum(1 for r in results if r.error and not r.compare_ok)
+
+    scored = [r for r in results if r.scores]
+    if scored:
+        avg_note = sum(r.scores.get("note_accuracy", 0) for r in scored) / len(scored)
+        avg_pitch = sum(r.scores.get("pitch_accuracy", 0) for r in scored) / len(scored)
+        avg_rhythm = sum(r.scores.get("rhythm_accuracy", 0) for r in scored) / len(scored)
+        avg_overall = sum(r.scores.get("overall", 0) for r in scored) / len(scored)
+        avg_measure = sum(r.scores.get("measure_accuracy", 0) for r in scored) / len(scored)
+        avg_key = sum(r.scores.get("key_sig_accuracy", 0) for r in scored) / len(scored)
+        avg_time = sum(r.scores.get("time_sig_accuracy", 0) for r in scored) / len(scored)
+    else:
+        avg_note = avg_pitch = avg_rhythm = avg_overall = 0.0
+        avg_measure = avg_key = avg_time = 0.0
+
+    return {
+        "summary": {
+            "total_fixtures": total,
+            "passed": passed,
+            "failed": failed,
+            "errors": errors,
+            "avg_note_accuracy": avg_note,
+            "avg_pitch_accuracy": avg_pitch,
+            "avg_rhythm_accuracy": avg_rhythm,
+            "avg_overall_accuracy": avg_overall,
+            "avg_measure_accuracy": avg_measure,
+            "avg_key_sig_accuracy": avg_key,
+            "avg_time_sig_accuracy": avg_time,
+            "target_95_percent_met": avg_overall >= 95.0,
+        },
+        "results": [
+            {
+                "name": r.test_name,
+                "passed": r.passed,
+                "scores": r.scores,
+                "gt_notes": r.gt_note_count,
+                "matched_notes": r.matched_note_count,
+                "duration_seconds": r.duration_seconds,
+                "error": r.error,
+            }
+            for r in results
+        ],
+    }
+
+
+def run_baseline_validation(output_path: Optional[Path] = None, model: str = "claude-sonnet-4-6") -> dict:
+    """Run baseline validation and return results.
+
+    This is a convenience function that can be called from validate_baseline.py
+    or any other script that needs to run the baseline validation.
+
+    Args:
+        output_path: Path to save the baseline report (default: tests/BASELINE_REPORT.md)
+        model: Claude model to use for extraction
+
+    Returns:
+        Same dict as get_baseline_metrics()
+    """
+    if output_path is None:
+        output_path = Path(__file__).parent / "tests" / "BASELINE_REPORT.md"
+
+    metrics = get_baseline_metrics(model=model, skip_api=False)
+
+    # Import the report generation from validate_baseline if available
+    try:
+        from tests.validate_baseline import generate_markdown_report, save_report
+        from tests.validate_baseline import BaselineSummary, FixtureResult, FixtureInfo
+
+        summary = BaselineSummary(
+            total_fixtures=metrics["summary"]["total_fixtures"],
+            passed=metrics["summary"]["passed"],
+            failed=metrics["summary"]["failed"],
+            errors=metrics["summary"]["errors"],
+            avg_note_accuracy=metrics["summary"]["avg_note_accuracy"],
+            avg_pitch_accuracy=metrics["summary"]["avg_pitch_accuracy"],
+            avg_rhythm_accuracy=metrics["summary"]["avg_rhythm_accuracy"],
+            avg_overall_accuracy=metrics["summary"]["avg_overall_accuracy"],
+            avg_measure_accuracy=metrics["summary"]["avg_measure_accuracy"],
+            avg_key_sig_accuracy=metrics["summary"]["avg_key_sig_accuracy"],
+            avg_time_sig_accuracy=metrics["summary"]["avg_time_sig_accuracy"],
+            target_95_percent_met=metrics["summary"]["target_95_percent_met"],
+            timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+        results = []
+        for r in metrics["results"]:
+            fixture = FixtureInfo(name=r["name"], path=Path(""))
+            result = FixtureResult(
+                fixture=fixture,
+                passed=r["passed"],
+                scores=r["scores"],
+                gt_note_count=r["gt_notes"],
+                matched_note_count=r["matched_notes"],
+                duration_seconds=r["duration_seconds"],
+                error=r["error"],
+            )
+            results.append(result)
+
+        markdown = generate_markdown_report(results, summary, model)
+        save_report(markdown, output_path)
+    except ImportError:
+        # Fallback: just save JSON
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path.with_suffix(".json"), "w") as f:
+            json.dump(metrics, f, indent=2)
+
+    return metrics

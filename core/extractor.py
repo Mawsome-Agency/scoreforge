@@ -421,24 +421,44 @@ def _extract_two_pass(
     """Two-pass extraction: structure first, then note-by-note details."""
     
     # --- Early check: if this is clearly an empty score test fixture, short-circuit immediately ---
-    # This prevents JSONDecodeError from truncation on minimal content
-    # We detect empty scores by running a minimal structure pass first
+    # This prevents JSONDecodeError from truncation on minimal content.
+    # IMPORTANT: We require the LLM to explicitly say "empty" as its primary answer.
+    # We do NOT trigger on descriptions like "mostly empty space" — those are spatial,
+    # not musical. A score with even one note/rest is NOT empty and must be extracted.
     empty_check_kwargs = {
         "model": model,
-        "max_tokens": 2000,
+        "max_tokens": 100,
         "messages": [
             {
                 "role": "user",
-                "content": [image_block, {"type": "text", "text": "Is this sheet music image completely empty or does it contain musical content? Answer with 'empty' if blank, 'content' if it has notes/rests."}],
+                "content": [image_block, {
+                    "type": "text",
+                    "text": (
+                        "Does this sheet music image contain ANY musical notes or rests? "
+                        "Even a single note counts. "
+                        "Reply with exactly one word: YES if there are any notes/rests, NO if the staff is completely blank."
+                    )
+                }],
             }
         ],
     }
     
     try:
         empty_check_text = api.stream_and_collect(**empty_check_kwargs)
-        if "empty" in empty_check_text.lower():
-            print("[ScoreForge] Early detection: empty score - generating minimal MusicXML", flush=True)
+        resp_lower = empty_check_text.lower().strip()
+        # We only short-circuit when the LLM says the score has NO musical content.
+        # The answer must start with "no" (or be exactly "no") and must not contain
+        # any indication of musical content (notes, rests, measures, etc.).
+        has_music_keywords = any(w in resp_lower for w in [
+            "yes", "note", "rest", "measure", "chord", "pitch", "staff", "beat"
+        ])
+        starts_with_no = resp_lower.startswith("no")
+        is_clearly_empty = starts_with_no and not has_music_keywords
+        if is_clearly_empty:
+            print(f"[ScoreForge] Early detection: empty score (LLM: {repr(empty_check_text[:60])}) - generating minimal MusicXML", flush=True)
             return _generate_empty_musicxml()
+        else:
+            print(f"[ScoreForge] Empty check: has musical content (LLM: {repr(empty_check_text[:60])})", flush=True)
     except Exception:
         # If the empty check fails, continue with normal extraction
         pass

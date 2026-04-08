@@ -425,6 +425,14 @@ def _parse_note_element(note_el, ns: str, divisions: int) -> Optional[dict]:
     dur_el = note_el.find(f"{ns}duration")
     duration = int(dur_el.text) if dur_el is not None and dur_el.text else divisions
 
+    # Normalize duration to quarter-note units for cross-divisions comparison.
+    # MusicXML allows any divisions value (music21 uses 10080, hand-crafted
+    # fixtures often use 1). A quarter note at divisions=10080 has duration=10080;
+    # at divisions=1 it has duration=1. Both are semantically one quarter note.
+    # Comparing raw integers always fails when divisions differ, so we store
+    # a normalized float (quarter_note_units = duration / divisions).
+    duration_normalized = duration / divisions if divisions > 0 else float(duration)
+
     # Parse type
     type_el = note_el.find(f"{ns}type")
     note_type = type_el.text if type_el is not None else None
@@ -455,6 +463,7 @@ def _parse_note_element(note_el, ns: str, divisions: int) -> Optional[dict]:
         "is_grace": is_grace,
         "pitch": pitch,
         "duration": duration,
+        "duration_normalized": duration_normalized,
         "type": note_type,
         "dot_count": dot_count,
         "voice": voice,
@@ -598,8 +607,12 @@ def _compare_measures(gt_m: dict, ex_m: dict, measure_num: int) -> dict:
                 })
                 note_ok = False
 
-        # Compare duration
-        if gt_n["duration"] == ex_n["duration"]:
+        # Compare duration using normalized quarter-note units so that fixtures
+        # with non-standard divisions (e.g. music21's divisions=10080) compare
+        # correctly against extractions that use divisions=1.
+        gt_dur_norm = gt_n.get("duration_normalized", gt_n["duration"])
+        ex_dur_norm = ex_n.get("duration_normalized", ex_n["duration"])
+        if abs(gt_dur_norm - ex_dur_norm) < 0.001:
             durations_correct += 1
         else:
             diffs.append({

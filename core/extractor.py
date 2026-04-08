@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from core import api
+from core.clef_detector import ClefDetector
 
 from models.score import Score, Part
 from models.measure import Measure, KeySignature, TimeSignature, Clef, Barline
@@ -284,6 +285,10 @@ def extract_from_image(
     Returns:
         Parsed Score object.
     """
+    # CV pre-processing: detect staff lines and clef types before API calls
+    clef_detector = ClefDetector()
+    clef_metadata = clef_detector.process(image_path)
+
     # Client managed by core.api with fallback
     image_data, media_type = encode_image(image_path)
 
@@ -297,9 +302,9 @@ def extract_from_image(
     }
 
     if two_pass:
-        return _extract_two_pass(image_block, model, use_thinking)
+        return _extract_two_pass(image_block, model, use_thinking, clef_metadata)
     else:
-        return _extract_single_pass(image_block, model, use_thinking)
+        return _extract_single_pass(image_block, model, use_thinking, clef_metadata)
 
 
 # ---------------------------------------------------------------------------
@@ -313,6 +318,7 @@ def _extract_two_pass(
     image_block: dict,
     model: str,
     use_thinking: bool,
+    clef_metadata: Optional[dict] = None,
 ) -> Score:
     """Two-pass extraction: structure first, then note-by-note details."""
 
@@ -333,7 +339,9 @@ def _extract_two_pass(
     structure_data = json.loads(structure_json_str)
 
     # --- Pass 2: Extract detailed notes ---
-    detail_prompt = DETAIL_PROMPT.format(
+    clef_context = (clef_metadata or {}).get("context_block", "")
+    clef_prefix = f"\n{clef_context}\n\n" if clef_context else ""
+    detail_prompt = clef_prefix + DETAIL_PROMPT.format(
         structure_json=json.dumps(structure_data, indent=2)
     )
 
@@ -373,12 +381,15 @@ def _extract_single_pass(
     image_block: dict,
     model: str,
     use_thinking: bool,
+    clef_metadata: Optional[dict] = None,
 ) -> Score:
     """Single-pass extraction with the full detail prompt."""
 
     # Use a minimal structure placeholder for the detail prompt
     placeholder = {"note": "Structure not pre-analyzed. Extract everything from the image."}
-    detail_prompt = DETAIL_PROMPT.format(
+    clef_context = (clef_metadata or {}).get("context_block", "")
+    clef_prefix = f"\n{clef_context}\n\n" if clef_context else ""
+    detail_prompt = clef_prefix + DETAIL_PROMPT.format(
         structure_json=json.dumps(placeholder, indent=2)
     )
 
@@ -556,8 +567,12 @@ def _sanitize_stem(raw) -> Optional[str]:
     """Normalize and validate a stem value from LLM output.
 
     Accepts only the four values allowed in MusicXML <stem> elements.
-    Anything else (e.g. "upward", "northward", "↑") is discarded (→ None).
+    Anything else (e.g. "upward", "northward", "↑", non-string types)
+    is discarded (→ None).  Non-string inputs (int, bool, list, etc.)
+    are coerced to None safely — no AttributeError.
     """
+    if not isinstance(raw, str):
+        return None
     normalized = (raw or "").lower().strip()
     return normalized if normalized in _VALID_STEMS else None
 

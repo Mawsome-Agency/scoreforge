@@ -55,7 +55,7 @@ class TestCase:
     tags: list[str] = field(default_factory=list)
 
 
-# Built-in test cases from fixtures
+# Built-in test cases from fixtures (18 fixtures total)
 BUILT_IN_TESTS = [
     TestCase(
         name="simple_melody",
@@ -84,6 +84,104 @@ BUILT_IN_TESTS = [
         description="C major, 3/4, 4 measures, 2-voice counterpoint with triplet tuplets",
         difficulty="hard",
         tags=["tuplets", "multi_voice", "triplets", "time_modification"],
+    ),
+    TestCase(
+        name="full_orchestra",
+        musicxml_path=str(FIXTURE_DIR / "full_orchestra.musicxml"),
+        description="C major, 4/4, 8-part orchestral arrangement (flute, oboe, clarinet, horn, strings) with transpositions",
+        difficulty="hard",
+        tags=["orchestra", "multi_part", "transposition", "instruments"],
+    ),
+    TestCase(
+        name="clef_changes",
+        musicxml_path=str(FIXTURE_DIR / "clef_changes.musicxml"),
+        description="C major, 4/4, 4 measures with treble/bass clef changes mid-piece",
+        difficulty="medium",
+        tags=["clef_changes", "single_part"],
+    ),
+    TestCase(
+        name="dynamics_hairpins",
+        musicxml_path=str(FIXTURE_DIR / "dynamics_hairpins.musicxml"),
+        description="C major, 4/4, 4 measures with dynamic markings and hairpin crescendo/decrescendo",
+        difficulty="medium",
+        tags=["dynamics", "hairpins", "grand_staff"],
+    ),
+    TestCase(
+        name="key_changes",
+        musicxml_path=str(FIXTURE_DIR / "key_changes.musicxml"),
+        description="6 measures with key signature changes (C major -> G major -> Bb major)",
+        difficulty="medium",
+        tags=["key_changes", "accidentals", "single_part"],
+    ),
+    TestCase(
+        name="mixed_meters",
+        musicxml_path=str(FIXTURE_DIR / "mixed_meters.musicxml"),
+        description="7 measures with time signature changes (4/4 -> 3/4 -> 2/4)",
+        difficulty="medium",
+        tags=["time_changes", "mixed_meters", "single_part"],
+    ),
+    TestCase(
+        name="multi_voice",
+        musicxml_path=str(FIXTURE_DIR / "multi_voice.musicxml"),
+        description="C major, 4/4, 4 measures of counterpoint with two voices on single staff",
+        difficulty="hard",
+        tags=["multi_voice", "counterpoint", "stems", "single_staff"],
+    ),
+    TestCase(
+        name="lyrics_verses",
+        musicxml_path=str(FIXTURE_DIR / "lyrics_verses.musicxml"),
+        description="C major, 4/4, 4 measures with multi-verse lyrics (2 verses)",
+        difficulty="medium",
+        tags=["lyrics", "verses", "vocal"],
+    ),
+    TestCase(
+        name="marching_stickings",
+        musicxml_path=str(FIXTURE_DIR / "marching_stickings.musicxml"),
+        description="4 measures with percussion stroke markings (up/down)",
+        difficulty="medium",
+        tags=["percussion", "stickings", "technical"],
+    ),
+    TestCase(
+        name="annotations",
+        musicxml_path=str(FIXTURE_DIR / "annotations.musicxml"),
+        description="C major, 4/4, 4 measures with articulations (staccato, accent, tenuto, fermata) and slurs",
+        difficulty="medium",
+        tags=["articulations", "fermata", "slurs", "ties"],
+    ),
+    TestCase(
+        name="empty_score",
+        musicxml_path=str(FIXTURE_DIR / "empty_score.musicxml"),
+        description="C major, 4/4, 4 measures of whole note rests only",
+        difficulty="easy",
+        tags=["rests", "minimal", "edge_case"],
+    ),
+    TestCase(
+        name="grace_notes",
+        musicxml_path=str(FIXTURE_DIR / "grace_notes.musicxml"),
+        description="C major, 4/4, 4 measures with appoggiatura and acciaccatura grace notes",
+        difficulty="medium",
+        tags=["grace_notes", "ornaments"],
+    ),
+    TestCase(
+        name="repeat_signs",
+        musicxml_path=str(FIXTURE_DIR / "repeat_signs.musicxml"),
+        description="C major, 4/4, 4 measures with forward/backward repeat barlines",
+        difficulty="medium",
+        tags=["repeats", "barlines"],
+    ),
+    TestCase(
+        name="tempo_marks",
+        musicxml_path=str(FIXTURE_DIR / "tempo_marks.musicxml"),
+        description="C major, 4/4, 4 measures with tempo changes and accelerando",
+        difficulty="medium",
+        tags=["tempo", "metronome", "directions", "grand_staff"],
+    ),
+    TestCase(
+        name="chords_arpeggios",
+        musicxml_path=str(FIXTURE_DIR / "chords_arpeggios.musicxml"),
+        description="C major, 4/4, 4 measures with chord notation and arpeggios",
+        difficulty="medium",
+        tags=["chords", "arpeggios", "grand_staff"],
     ),
 ]
 

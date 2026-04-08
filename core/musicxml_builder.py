@@ -3,7 +3,7 @@ from lxml import etree
 
 from models.score import Score, Part
 from models.measure import Measure
-from models.note import Note
+from models.note import Note, NoteType
 
 
 def build_musicxml(score: Score) -> str:
@@ -163,7 +163,10 @@ def _build_note(parent: etree._Element, note: Note):
 
     # Rest or pitch
     if note.is_rest:
-        etree.SubElement(n_elem, "rest")
+        rest_attrs = {}
+        if note.note_type == NoteType.WHOLE and not note.is_chord:
+            rest_attrs["measure"] = "yes"
+        etree.SubElement(n_elem, "rest", **rest_attrs)
     elif note.pitch:
         pitch_elem = etree.SubElement(n_elem, "pitch")
         etree.SubElement(pitch_elem, "step").text = note.pitch.step

@@ -202,6 +202,8 @@ CRITICAL RULES — READ CAREFULLY:
     - NEVER infer pitches from melody patterns you might recognize. If you think you see a familiar melody, IGNORE that recognition entirely. Read ONLY the visual vertical position of each notehead on the staff.
     - The measure count from the structure analysis is a guide, but always prefer what you can count in the image. Generate EXACTLY as many measures as you can see — no more.
     - LYRICS: If lyrics are printed below the staff, use them as a cross-check: each syllabic unit = exactly one note. Count syllables per measure to verify your note count.
+    - RESTS: A measure containing only a rest symbol must be output as a rest. Never
+      replace rests with notes to 'complete' what appears to be an empty measure.
 
 13a. STAFF COUNT:
     - Count the number of physically visible staff systems in the image.
@@ -214,6 +216,24 @@ CRITICAL RULES — READ CAREFULLY:
       (b) If lyrics are present: syllable count = note count
     - If either check fails, add the missing notes before closing the measure.
     - A measure with only 2 quarter notes in 4/4 time is INCOMPLETE — you are missing 2 beats.
+
+13b. WHOLE-MEASURE RESTS (OVERRIDE RULE 2):
+   - A whole-measure rest is a FILLED BLACK RECTANGLE hanging below line 4 (treble) or
+     sitting on line 3 (bass). It means the entire measure is silent.
+   - When a measure contains ONLY this symbol — no noteheads, no chord tones — emit
+     EXACTLY ONE note:
+       {{"is_rest": true, "type": "whole", "duration": <beats>, "voice": 1, "staff": 1, ...}}
+     where <beats> = the time signature numerator (4 in 4/4, 3 in 3/4, 6 in 6/8, etc.)
+   - This IS duration-complete. The self-check passes. Do NOT add pitch notes.
+
+13c. EMPTY SCORE DETECTION:
+   - If the entire image shows blank staves (clef + key/time signature visible, but NO
+     noteheads or individual rhythmic values other than whole-measure rest symbols):
+     output exactly as many measures as you can count, each with a whole-measure rest.
+   - NEVER invent pitch content (arpeggios, triads, scale fragments) to fill what looks
+     like an empty measure. A blank measure is valid and must stay blank.
+   - The COMPLETENESS rule (rule 1) and MISSING NOTES check (rule 2) apply only to
+     VISIBLE notation you can see in the image — not to filling gaps with assumed content.
 
 FINAL SELF-CHECK: After completing extraction, verify:
 - Total measure count matches what you can count in the image

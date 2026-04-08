@@ -39,12 +39,19 @@ Use this exact structure:
 }
 
 RULES:
-- Count measures carefully by counting barlines. Do NOT guess.
+- Count measures carefully by counting barlines visible in the image. Do NOT guess or extrapolate.
 - For piano/keyboard: staves=2 (treble + bass).
 - Key signature fifths: negative=flats, positive=sharps (-2 = Bb major, 1 = G major, etc.)
+- TIME SIGNATURE: Read the printed number at the top (beats) and bottom (beat-type) of the time signature symbol. Do NOT assume 4/4 as a default — it may be 3/4, 6/8, 2/4, or anything else.
 - If there are multiple pages visible, set page_count_estimate accordingly.
 - This is ONLY the structure pass. Do not extract individual notes yet.
-- YOUR ENTIRE RESPONSE MUST BE VALID JSON. No other text."""
+- YOUR ENTIRE RESPONSE MUST BE VALID JSON. No other text.
+
+CRITICAL — ANTI-HALLUCINATION:
+- Do NOT infer the title, composer, or musical content from melody patterns in your training data.
+- Extract ONLY information explicitly printed in the image (title block, composer credit, notation symbols).
+- If you think you recognize a famous melody, DISCARD that recognition entirely — read the image literally.
+- The measure count MUST come from counting visible barlines, not from memory of any piece."""
 
 
 DETAIL_PROMPT = """You are an expert music notation reader performing a DETAILED note-by-note extraction.
@@ -81,6 +88,7 @@ Output a JSON object with this exact structure:
               "is_chord": false,
               "voice": 1,
               "staff": 1,
+              "stem": null,
               "tie_start": false,
               "tie_stop": false,
               "slur_start": false,
@@ -109,19 +117,34 @@ CRITICAL RULES — READ CAREFULLY:
    - "divisions" = number of divisions per quarter note.
    - In each measure, the sum of non-chord note durations MUST equal:
      (time_signature.beats / time_signature.beat_type) * 4 * divisions
-   - Example: 4/4 with divisions=1 => total = 4. 6/8 with divisions=2 => total = 6.
-   - For EACH measure, after writing it, mentally verify: do the note durations sum correctly?
-   - If they don't, fix them before moving on.
+   - Example: 4/4 with divisions=1 => total = 4. 3/4 with divisions=1 => total = 3. 6/8 with divisions=2 => total = 6.
+   - For EACH measure, after writing it, verify the sum. If the sum is SHORT, you are MISSING NOTES — look again.
+   - Do NOT move to the next measure until the current one is duration-complete.
 
-3. PITCH ACCURACY:
-   - Middle C = C4. The treble clef (G clef, line 2) places G4 on the second line.
-   - Bass clef (F clef, line 4) places F3 on the fourth line.
-   - Count lines and spaces carefully from the clef reference point.
-   - Remember key signature accidentals apply to ALL octaves of that note unless cancelled by a natural.
+3. PITCH ACCURACY — STEP-BY-STEP PROTOCOL (FOLLOW IN ORDER):
+   STEP 1: IDENTIFY THE CLEF FIRST (before reading any notes)
+   - Look at the LEFT SIDE of the staff for the clef symbol
+   - Is it treble (G clef), bass (F clef), or alto (C clef)?
+   
+   STEP 2: ESTABLISH THE REFERENCE PITCH AS SPATIAL ANCHOR
+   - Treble clef: spiral wraps around line 2 = G4. Lines bottom-to-top: E4 G4 B4 D5 F5. Spaces: F4 A4 C5 E5
+   - Bass clef: two dots around line 4 = F3. Lines: G2 B2 D3 F3 A3. Spaces: A2 C3 E3 G3
+   - Use this anchor for EVERY note — count from this known position
+   
+   STEP 3: FOR EACH NOTE, COUNT LINES/SPACES FROM ANCHOR
+   - Count the notehead vertical position relative to the clef anchor line
+   - Each step up/down = one diatonic step (C D E F G A B then repeat)
+   - Above the staff: continue counting upward with ledger lines
+   - Below the staff: continue counting downward with ledger lines
+   
+   STEP 4: ASSIGN CORRECT OCTAVE
+   - Octave changes at C (every C resets the octave number)
+   - Middle C = C4 (one ledger line below treble staff)
 
 4. KEY/TIME/CLEF RULES:
    - First measure MUST include time_signature, key_signature, and clef.
    - Subsequent measures: include these ONLY when they CHANGE.
+   - TIME SIGNATURE: Read the printed symbol carefully. Do NOT default to 4/4. A "3" on top means 3 beats per measure.
 
 5. CHORD NOTATION:
    - First note in a chord: is_chord = false
@@ -131,6 +154,34 @@ CRITICAL RULES — READ CAREFULLY:
    - staves = 2
    - staff = 1 for treble, staff = 2 for bass
    - Use voice = 1 for treble staff notes, voice = 2 for bass staff notes
+
+6a. MULTI-VOICE (Same Staff):
+   - When multiple independent voices share a single staff (common in keyboard music, Bach chorales, polyphony), you MUST assign each note to the correct voice.
+   - STEM DIRECTION is the primary voice separator:
+     * Notes with stems pointing UP (above the notehead) → voice 1
+     * Notes with stems pointing DOWN (below the notehead) → voice 2
+   - Set the "stem" field on every note: "up" or "down"
+   - Number voices sequentially: voice 1, voice 2, voice 3, etc.
+   - Within a measure, list ALL voice 1 notes first, then ALL voice 2 notes, etc.
+   - Each voice must be duration-complete on its own (voice 1 notes sum to full measure, voice 2 notes sum to full measure).
+   - If a voice has no notes for part of the measure, include a rest with that voice number.
+   - Example: In 4/4 time, voice 1 has 4 quarter notes (C5 C#5 D5 Eb5, all stem up), voice 2 has 1 half note (E4, stem down) + 1 half rest. List: 4 voice-1 notes first, then 1 voice-2 half note, then 1 voice-2 half rest.
+
+   VOICE ASSIGNMENT FALLBACK RULES (apply when stem direction is absent or ambiguous):
+   a) WHOLE NOTES & HALF NOTES (no visible stem): assign by pitch position on the staff.
+      - The note with the HIGHER pitch (closer to the top of the staff) → voice 1
+      - The note with the LOWER pitch → voice 2
+      - If only one such note exists in the measure, assign it to voice 1.
+   b) RESTS: assign to voice 1 by default.
+      - Only assign a rest to voice 2 (or higher) when a second voice rest is EXPLICITLY
+        notated in the score (e.g., a rest visually offset from the voice-1 rest position).
+   c) TIED NOTES: carry the voice number from the note that BEGINS the tie.
+      - Do NOT re-derive the voice from stem direction on tied continuations — the
+        continuation note (tie_stop=true) inherits the same voice as its tie origin.
+   d) BEAMED GROUPS: all notes within a single beam group share the same voice.
+      - Determine the voice from the stem direction of the beam (beam stems up → voice 1,
+        beam stems down → voice 2) and apply that voice to every note in the group,
+        even if individual noteheads appear ambiguous.
 
 7. NOTE TYPES: "whole", "half", "quarter", "eighth", "16th", "32nd", "64th"
 
@@ -146,8 +197,29 @@ CRITICAL RULES — READ CAREFULLY:
     - First note: tie_start = true
     - Second note: tie_stop = true
 
+12. ANTI-HALLUCINATION (CRITICAL):
+    - Extract ONLY the notes, pitches, and rhythms you can SEE in the image.
+    - Do NOT generate notes from memory or prior musical knowledge about any piece.
+    - NEVER infer pitches from melody patterns you might recognize. If you think you see a familiar melody, IGNORE that recognition entirely. Read ONLY the visual vertical position of each notehead on the staff.
+    - The measure count from the structure analysis is a guide, but always prefer what you can count in the image. Generate EXACTLY as many measures as you can see — no more.
+    - LYRICS: If lyrics are printed below the staff, use them as a cross-check: each syllabic unit = exactly one note. Count syllables per measure to verify your note count.
+
+13. MEASURE COMPLETENESS (PER-MEASURE GATE):
+    - After writing each measure's notes array, pause and verify:
+      (a) Duration sum = expected total (rule 2 above)
+      (b) If lyrics are present: syllable count = note count
+    - If either check fails, add the missing notes before closing the measure.
+    - A measure with only 2 quarter notes in 4/4 time is INCOMPLETE — you are missing 2 beats.
+
+
+
+14. STAFF COUNT:
+    - Count the number of physically visible staff systems in the image.
+    - Report only staves you can see — do not add a bass staff because the music style might imply one.
+    - If you see only one staff (treble or bass), set staves=1.
+
 FINAL SELF-CHECK: After completing extraction, verify:
-- Total measure count matches what you see in the image
+- Total measure count matches what you can count in the image
 - Each measure's note durations sum to the time signature
 - No notes are missing from any measure
 - Pitches are correct relative to the clef and key signature
@@ -495,6 +567,17 @@ ACCIDENTAL_MAP = {
     "double-flat": Accidental.DOUBLE_FLAT,
 }
 
+# Allowlist for stem values emitted into MusicXML <stem> elements.
+# Anything outside this set (e.g. "upward", "northward", arrow chars) is
+# treated as an LLM hallucination and coerced to None.
+_VALID_STEMS = {"up", "down", "none", "double"}
+
+
+def _sanitize_stem(raw) -> "Optional[str]":
+    """Coerce LLM stem value to an allowlisted string or None."""
+    normalized = (raw or "").lower().strip()
+    return normalized if normalized in _VALID_STEMS else None
+
 
 def _build_note(data: dict) -> Note:
     """Convert raw note data to Note model."""
@@ -521,6 +604,7 @@ def _build_note(data: dict) -> Note:
         voice=data.get("voice", 1),
         staff=data.get("staff", 1),
         beam=data.get("beam"),
+        stem=_sanitize_stem(data.get("stem")),
         tie_start=data.get("tie_start", False),
         tie_stop=data.get("tie_stop", False),
         slur_start=data.get("slur_start", False),

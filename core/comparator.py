@@ -1,6 +1,7 @@
 """Comparison tools: visual (pixel) comparison and semantic MusicXML comparison."""
 import base64
 import json
+from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
@@ -425,6 +426,14 @@ def _parse_note_element(note_el, ns: str, divisions: int) -> Optional[dict]:
     dur_el = note_el.find(f"{ns}duration")
     duration = int(dur_el.text) if dur_el is not None and dur_el.text else divisions
 
+    # Normalize duration to quarter-note units for cross-divisions comparison.
+    # MusicXML allows any divisions value (music21 uses 10080, hand-crafted
+    # fixtures often use 1). A quarter note at divisions=10080 has duration=10080;
+    # at divisions=1 it has duration=1. Both are semantically one quarter note.
+    # Comparing raw integers always fails when divisions differ, so we store
+    # a normalized float (quarter_note_units = duration / divisions).
+    duration_normalized = duration / divisions if divisions > 0 else float(duration)
+
     # Parse type
     type_el = note_el.find(f"{ns}type")
     note_type = type_el.text if type_el is not None else None
@@ -455,6 +464,7 @@ def _parse_note_element(note_el, ns: str, divisions: int) -> Optional[dict]:
         "is_grace": is_grace,
         "pitch": pitch,
         "duration": duration,
+        "duration_normalized": duration_normalized,
         "type": note_type,
         "dot_count": dot_count,
         "voice": voice,
@@ -524,110 +534,28 @@ def _compare_measures(gt_m: dict, ex_m: dict, measure_num: int) -> dict:
     gt_notes = gt_m["notes"]
     ex_notes = ex_m["notes"]
 
-    # Match notes by position (index), comparing pitch, duration, type
+    # Group notes by voice and compare voice-by-voice to avoid cross-voice mismatches.
+    gt_by_voice = defaultdict(list)
+    ex_by_voice = defaultdict(list)
+    for n in gt_notes:
+        gt_by_voice[n.get("voice", 1)].append(n)
+    for n in ex_notes:
+        ex_by_voice[n.get("voice", 1)].append(n)
+
     notes_matched = 0
     pitches_correct = 0
     durations_correct = 0
     gt_pitch_count = 0
 
-    max_notes = max(len(gt_notes), len(ex_notes))
-
-    for ni in range(max_notes):
-        if ni >= len(gt_notes):
-            diffs.append({
-                "type": "extra_note",
-                "measure": measure_num,
-                "position": ni,
-                "description": f"Extra note at position {ni}: {_note_str(ex_notes[ni])}",
-            })
-            continue
-
-        if ni >= len(ex_notes):
-            diffs.append({
-                "type": "missing_note",
-                "measure": measure_num,
-                "position": ni,
-                "description": f"Missing note at position {ni}: expected {_note_str(gt_notes[ni])}",
-            })
-            continue
-
-        gt_n = gt_notes[ni]
-        ex_n = ex_notes[ni]
-
-        note_ok = True
-
-        # Compare rest vs. note
-        if gt_n["is_rest"] != ex_n["is_rest"]:
-            diffs.append({
-                "type": "wrong_note_type",
-                "measure": measure_num,
-                "position": ni,
-                "description": f"Position {ni}: expected {'rest' if gt_n['is_rest'] else 'note'}, got {'rest' if ex_n['is_rest'] else 'note'}",
-            })
-            note_ok = False
-        else:
-            notes_matched += 1
-
-        # Compare pitch (only for non-rests)
-        if not gt_n["is_rest"] and gt_n["pitch"]:
-            gt_pitch_count += 1
-            if ex_n.get("pitch"):
-                pitch_match = (
-                    gt_n["pitch"]["step"] == ex_n["pitch"]["step"]
-                    and gt_n["pitch"]["octave"] == ex_n["pitch"]["octave"]
-                    and gt_n["pitch"].get("alter", 0) == ex_n["pitch"].get("alter", 0)
-                )
-                if pitch_match:
-                    pitches_correct += 1
-                else:
-                    diffs.append({
-                        "type": "wrong_pitch",
-                        "measure": measure_num,
-                        "position": ni,
-                        "expected": gt_n["pitch"],
-                        "got": ex_n["pitch"],
-                    })
-                    note_ok = False
-            else:
-                diffs.append({
-                    "type": "missing_pitch",
-                    "measure": measure_num,
-                    "position": ni,
-                    "expected": gt_n["pitch"],
-                    "got": None,
-                })
-                note_ok = False
-
-        # Compare duration
-        if gt_n["duration"] == ex_n["duration"]:
-            durations_correct += 1
-        else:
-            diffs.append({
-                "type": "wrong_duration",
-                "measure": measure_num,
-                "position": ni,
-                "expected_duration": gt_n["duration"],
-                "got_duration": ex_n["duration"],
-                "expected_type": gt_n.get("type"),
-                "got_type": ex_n.get("type"),
-            })
-            note_ok = False
-
-        # Compare ties
-        if gt_n.get("tie_start") != ex_n.get("tie_start"):
-            diffs.append({
-                "type": "wrong_tie",
-                "measure": measure_num,
-                "position": ni,
-                "description": f"tie_start: expected {gt_n.get('tie_start')}, got {ex_n.get('tie_start')}",
-            })
-        if gt_n.get("tie_stop") != ex_n.get("tie_stop"):
-            diffs.append({
-                "type": "wrong_tie",
-                "measure": measure_num,
-                "position": ni,
-                "description": f"tie_stop: expected {gt_n.get('tie_stop')}, got {ex_n.get('tie_stop')}",
-            })
+    for voice_num in sorted(gt_by_voice.keys() | ex_by_voice.keys()):
+        vm, vpc, vdc, vgpc, vdiffs = _compare_note_lists(
+            gt_by_voice[voice_num], ex_by_voice[voice_num], measure_num, voice_num=voice_num
+        )
+        notes_matched += vm
+        pitches_correct += vpc
+        durations_correct += vdc
+        gt_pitch_count += vgpc
+        diffs.extend(vdiffs)
 
     is_perfect = (
         len(diffs) == 0
@@ -654,6 +582,135 @@ def _compare_measures(gt_m: dict, ex_m: dict, measure_num: int) -> dict:
 # ---------------------------------------------------------------------------
 # Utilities
 # ---------------------------------------------------------------------------
+
+def _compare_note_lists(
+    gt_notes: list,
+    ex_notes: list,
+    measure_num: int,
+    voice_num: int | None = None,
+) -> tuple:
+    """Compare two lists of notes positionally.
+
+    Returns (notes_matched, pitches_correct, durations_correct, gt_pitch_count, diffs).
+    """
+    diffs = []
+    notes_matched = 0
+    pitches_correct = 0
+    durations_correct = 0
+    gt_pitch_count = 0
+    voice_label = f" voice {voice_num}" if voice_num is not None else ""
+
+    max_notes = max(len(gt_notes), len(ex_notes))
+
+    for ni in range(max_notes):
+        if ni >= len(gt_notes):
+            diffs.append({
+                "type": "extra_note",
+                "measure": measure_num,
+                "position": ni,
+                "voice": voice_num,
+                "description": f"Extra note at position {ni}{voice_label}: {_note_str(ex_notes[ni])}",
+            })
+            continue
+
+        if ni >= len(ex_notes):
+            diffs.append({
+                "type": "missing_note",
+                "measure": measure_num,
+                "position": ni,
+                "voice": voice_num,
+                "description": f"Missing note at position {ni}{voice_label}: expected {_note_str(gt_notes[ni])}",
+            })
+            continue
+
+        gt_n = gt_notes[ni]
+        ex_n = ex_notes[ni]
+
+        note_ok = True
+
+        # Compare rest vs. note
+        if gt_n["is_rest"] != ex_n["is_rest"]:
+            diffs.append({
+                "type": "wrong_note_type",
+                "measure": measure_num,
+                "position": ni,
+                "voice": voice_num,
+                "description": f"Position {ni}{voice_label}: expected {'rest' if gt_n['is_rest'] else 'note'}, got {'rest' if ex_n['is_rest'] else 'note'}",
+            })
+            note_ok = False
+        else:
+            notes_matched += 1
+
+        # Compare pitch (only for non-rests)
+        if not gt_n["is_rest"] and gt_n["pitch"]:
+            gt_pitch_count += 1
+            if ex_n.get("pitch"):
+                pitch_match = (
+                    gt_n["pitch"]["step"] == ex_n["pitch"]["step"]
+                    and gt_n["pitch"]["octave"] == ex_n["pitch"]["octave"]
+                    and gt_n["pitch"].get("alter", 0) == ex_n["pitch"].get("alter", 0)
+                )
+                if pitch_match:
+                    pitches_correct += 1
+                else:
+                    diffs.append({
+                        "type": "wrong_pitch",
+                        "measure": measure_num,
+                        "position": ni,
+                        "voice": voice_num,
+                        "expected": gt_n["pitch"],
+                        "got": ex_n["pitch"],
+                    })
+                    note_ok = False
+            else:
+                diffs.append({
+                    "type": "missing_pitch",
+                    "measure": measure_num,
+                    "position": ni,
+                    "voice": voice_num,
+                    "expected": gt_n["pitch"],
+                    "got": None,
+                })
+                note_ok = False
+
+        # Compare duration using normalized quarter-note units
+        gt_dur_norm = gt_n.get("duration_normalized", gt_n["duration"])
+        ex_dur_norm = ex_n.get("duration_normalized", ex_n["duration"])
+        if abs(gt_dur_norm - ex_dur_norm) < 0.001:
+            durations_correct += 1
+        else:
+            diffs.append({
+                "type": "wrong_duration",
+                "measure": measure_num,
+                "position": ni,
+                "voice": voice_num,
+                "expected_duration": gt_n["duration"],
+                "got_duration": ex_n["duration"],
+                "expected_type": gt_n.get("type"),
+                "got_type": ex_n.get("type"),
+            })
+            note_ok = False
+
+        # Compare ties
+        if gt_n.get("tie_start") != ex_n.get("tie_start"):
+            diffs.append({
+                "type": "wrong_tie",
+                "measure": measure_num,
+                "position": ni,
+                "voice": voice_num,
+                "description": f"tie_start: expected {gt_n.get('tie_start')}, got {ex_n.get('tie_start')}",
+            })
+        if gt_n.get("tie_stop") != ex_n.get("tie_stop"):
+            diffs.append({
+                "type": "wrong_tie",
+                "measure": measure_num,
+                "position": ni,
+                "voice": voice_num,
+                "description": f"tie_stop: expected {gt_n.get('tie_stop')}, got {ex_n.get('tie_stop')}",
+            })
+
+    return notes_matched, pitches_correct, durations_correct, gt_pitch_count, diffs
+
 
 def _note_str(note: dict) -> str:
     """Human-readable string for a parsed note dict."""

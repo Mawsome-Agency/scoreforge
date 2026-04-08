@@ -65,6 +65,7 @@ class Note:
     tuplet_normal: Optional[int] = None  # e.g., 2 for triplet (normal note count)
     tuplet_start: bool = False  # first note of a tuplet group — emit <tuplet type="start">
     tuplet_stop: bool = False   # last note of a tuplet group — emit <tuplet type="stop">
+    stem: Optional[str] = None  # "up", "down", "none" — used for multi-voice separation
     lyrics: list[str] = field(default_factory=list)
     fermata: bool = False
     grace: bool = False

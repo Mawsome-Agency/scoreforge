@@ -1,6 +1,7 @@
 """Comparison tools: visual (pixel) comparison and semantic MusicXML comparison."""
 import base64
 import json
+from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
@@ -533,45 +534,28 @@ def _compare_measures(gt_m: dict, ex_m: dict, measure_num: int) -> dict:
     gt_notes = gt_m["notes"]
     ex_notes = ex_m["notes"]
 
-    # Detect multi-voice: if either ground truth or extraction has multiple voices,
-    # group notes by voice and compare voice-by-voice to avoid cross-voice mismatches.
-    gt_voices = set(n.get("voice", 1) for n in gt_notes)
-    ex_voices = set(n.get("voice", 1) for n in ex_notes)
-    all_voices = sorted(gt_voices | ex_voices)
+    # Group notes by voice and compare voice-by-voice to avoid cross-voice mismatches.
+    gt_by_voice = defaultdict(list)
+    ex_by_voice = defaultdict(list)
+    for n in gt_notes:
+        gt_by_voice[n.get("voice", 1)].append(n)
+    for n in ex_notes:
+        ex_by_voice[n.get("voice", 1)].append(n)
 
     notes_matched = 0
     pitches_correct = 0
     durations_correct = 0
     gt_pitch_count = 0
 
-    if len(all_voices) <= 1:
-        # Single voice — use simple positional comparison
-        notes_matched, pitches_correct, durations_correct, gt_pitch_count, voice_diffs = _compare_note_lists(
-            gt_notes, ex_notes, measure_num
+    for voice_num in sorted(gt_by_voice.keys() | ex_by_voice.keys()):
+        vm, vpc, vdc, vgpc, vdiffs = _compare_note_lists(
+            gt_by_voice[voice_num], ex_by_voice[voice_num], measure_num, voice_num=voice_num
         )
-        diffs.extend(voice_diffs)
-    else:
-        # Multi-voice — group by voice and compare voice-by-voice
-        from collections import defaultdict
-        gt_by_voice = defaultdict(list)
-        ex_by_voice = defaultdict(list)
-        for n in gt_notes:
-            gt_by_voice[n.get("voice", 1)].append(n)
-        for n in ex_notes:
-            ex_by_voice[n.get("voice", 1)].append(n)
-
-        for voice_num in all_voices:
-            gt_voice_notes = gt_by_voice.get(voice_num, [])
-            ex_voice_notes = ex_by_voice.get(voice_num, [])
-
-            vm, vpc, vdc, vgpc, vdiffs = _compare_note_lists(
-                gt_voice_notes, ex_voice_notes, measure_num, voice_num=voice_num
-            )
-            notes_matched += vm
-            pitches_correct += vpc
-            durations_correct += vdc
-            gt_pitch_count += vgpc
-            diffs.extend(vdiffs)
+        notes_matched += vm
+        pitches_correct += vpc
+        durations_correct += vdc
+        gt_pitch_count += vgpc
+        diffs.extend(vdiffs)
 
     is_perfect = (
         len(diffs) == 0

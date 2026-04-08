@@ -39,12 +39,19 @@ Use this exact structure:
 }
 
 RULES:
-- Count measures carefully by counting barlines. Do NOT guess.
+- Count measures carefully by counting barlines visible in the image. Do NOT guess or extrapolate.
 - For piano/keyboard: staves=2 (treble + bass).
 - Key signature fifths: negative=flats, positive=sharps (-2 = Bb major, 1 = G major, etc.)
+- TIME SIGNATURE: Read the printed number at the top (beats) and bottom (beat-type) of the time signature symbol. Do NOT assume 4/4 as a default — it may be 3/4, 6/8, 2/4, or anything else.
 - If there are multiple pages visible, set page_count_estimate accordingly.
 - This is ONLY the structure pass. Do not extract individual notes yet.
-- YOUR ENTIRE RESPONSE MUST BE VALID JSON. No other text."""
+- YOUR ENTIRE RESPONSE MUST BE VALID JSON. No other text.
+
+CRITICAL — ANTI-HALLUCINATION:
+- Do NOT infer the title, composer, or musical content from melody patterns in your training data.
+- Extract ONLY information explicitly printed in the image (title block, composer credit, notation symbols).
+- If you think you recognize a famous melody, DISCARD that recognition entirely — read the image literally.
+- The measure count MUST come from counting visible barlines, not from memory of any piece."""
 
 
 DETAIL_PROMPT = """You are an expert music notation reader performing a DETAILED note-by-note extraction.
@@ -109,9 +116,9 @@ CRITICAL RULES — READ CAREFULLY:
    - "divisions" = number of divisions per quarter note.
    - In each measure, the sum of non-chord note durations MUST equal:
      (time_signature.beats / time_signature.beat_type) * 4 * divisions
-   - Example: 4/4 with divisions=1 => total = 4. 6/8 with divisions=2 => total = 6.
-   - For EACH measure, after writing it, mentally verify: do the note durations sum correctly?
-   - If they don't, fix them before moving on.
+   - Example: 4/4 with divisions=1 => total = 4. 3/4 with divisions=1 => total = 3. 6/8 with divisions=2 => total = 6.
+   - For EACH measure, after writing it, verify the sum. If the sum is SHORT, you are MISSING NOTES — look again.
+   - Do NOT move to the next measure until the current one is duration-complete.
 
 3. PITCH ACCURACY:
    - Middle C = C4. The treble clef (G clef, line 2) places G4 on the second line.
@@ -122,6 +129,7 @@ CRITICAL RULES — READ CAREFULLY:
 4. KEY/TIME/CLEF RULES:
    - First measure MUST include time_signature, key_signature, and clef.
    - Subsequent measures: include these ONLY when they CHANGE.
+   - TIME SIGNATURE: Read the printed symbol carefully. Do NOT default to 4/4. A "3" on top means 3 beats per measure.
 
 5. CHORD NOTATION:
    - First note in a chord: is_chord = false
@@ -146,8 +154,22 @@ CRITICAL RULES — READ CAREFULLY:
     - First note: tie_start = true
     - Second note: tie_stop = true
 
+12. ANTI-HALLUCINATION (CRITICAL):
+    - Extract ONLY the notes, pitches, and rhythms you can SEE in the image.
+    - Do NOT generate notes from memory or prior musical knowledge about any piece.
+    - If you think you recognize a melody pattern (e.g. a famous tune), IGNORE that recognition entirely. Read each note position literally from the staff lines and spaces.
+    - The measure count from the structure analysis is a guide, but always prefer what you can count in the image. Generate EXACTLY as many measures as you can see — no more.
+    - LYRICS: If lyrics are printed below the staff, use them as a cross-check: each syllabic unit = exactly one note. Count syllables per measure to verify your note count.
+
+13. MEASURE COMPLETENESS (PER-MEASURE GATE):
+    - After writing each measure's notes array, pause and verify:
+      (a) Duration sum = expected total (rule 2 above)
+      (b) If lyrics are present: syllable count = note count
+    - If either check fails, add the missing notes before closing the measure.
+    - A measure with only 2 quarter notes in 4/4 time is INCOMPLETE — you are missing 2 beats.
+
 FINAL SELF-CHECK: After completing extraction, verify:
-- Total measure count matches what you see in the image
+- Total measure count matches what you can count in the image
 - Each measure's note durations sum to the time signature
 - No notes are missing from any measure
 - Pitches are correct relative to the clef and key signature

@@ -88,6 +88,7 @@ Output a JSON object with this exact structure:
               "is_chord": false,
               "voice": 1,
               "staff": 1,
+              "stem": null,
               "tie_start": false,
               "tie_stop": false,
               "slur_start": false,
@@ -139,6 +140,18 @@ CRITICAL RULES — READ CAREFULLY:
    - staves = 2
    - staff = 1 for treble, staff = 2 for bass
    - Use voice = 1 for treble staff notes, voice = 2 for bass staff notes
+
+6a. MULTI-VOICE (Same Staff):
+   - When multiple independent voices share a single staff (common in keyboard music, Bach chorales, polyphony), you MUST assign each note to the correct voice.
+   - STEM DIRECTION is the primary voice separator:
+     * Notes with stems pointing UP (above the notehead) → voice 1
+     * Notes with stems pointing DOWN (below the notehead) → voice 2
+   - Set the "stem" field on every note: "up" or "down"
+   - Number voices sequentially: voice 1, voice 2, voice 3, etc.
+   - Within a measure, list ALL voice 1 notes first, then ALL voice 2 notes, etc.
+   - Each voice must be duration-complete on its own (voice 1 notes sum to full measure, voice 2 notes sum to full measure).
+   - If a voice has no notes for part of the measure, include a rest with that voice number.
+   - Example: In 4/4 time, voice 1 has 4 quarter notes (C5 C#5 D5 Eb5, all stem up), voice 2 has 1 half note (E4, stem down) + 1 half rest. List: 4 voice-1 notes first, then 1 voice-2 half note, then 1 voice-2 half rest.
 
 7. NOTE TYPES: "whole", "half", "quarter", "eighth", "16th", "32nd", "64th"
 
@@ -543,6 +556,7 @@ def _build_note(data: dict) -> Note:
         voice=data.get("voice", 1),
         staff=data.get("staff", 1),
         beam=data.get("beam"),
+        stem=data.get("stem"),
         tie_start=data.get("tie_start", False),
         tie_stop=data.get("tie_stop", False),
         slur_start=data.get("slur_start", False),

@@ -7,6 +7,11 @@ from typing import Optional
 import numpy as np
 from lxml import etree
 from PIL import Image
+
+# Safe XML parser — prevents XXE injection, SSRF, and Billion Laughs attacks.
+# resolve_entities=False: disables external entity expansion.
+# no_network=True: blocks any network fetch even if entities were somehow enabled.
+SAFE_XML_PARSER = etree.XMLParser(resolve_entities=False, no_network=True)
 import imagehash
 from core import api
 
@@ -317,7 +322,7 @@ def compare_musicxml_semantic(
 
 def _parse_musicxml(path: str) -> dict:
     """Parse a MusicXML file into a simplified dict for comparison."""
-    tree = etree.parse(path)
+    tree = etree.parse(path, SAFE_XML_PARSER)
     root = tree.getroot()
 
     # Handle namespace if present

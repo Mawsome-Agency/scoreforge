@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="4.0">
+  <work>
+    <work-title>Lyrics with Verses</work-title>
+  </work>
+  <identification>
+    <creator type="composer">ScoreForge Test</creator>
+    <encoding>
+      <software>ScoreForge</software>
+    </encoding>
+  </identification>
+  <part-list>
+    <score-part id="P1">
+      <part-name>Voice</part-name>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <!-- Tests lyrics with multiple verses -->
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>0</fifths><mode>major</mode></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>Now</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>See</text></lyric>
+      </note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>is</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>the</text></lyric>
+      </note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>the</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>sun</text></lyric>
+      </note>
+      <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>time</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>rise</text></lyric>
+      </note>
+    </measure>
+    <measure number="2">
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>To</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>With</text></lyric>
+      </note>
+      <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>greet</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>glad</text></lyric>
+      </note>
+      <note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>the</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>est</text></lyric>
+      </note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>morn</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>eyes</text></lyric>
+      </note>
+    </measure>
+    <measure number="3">
+      <note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>And</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>How</text></lyric>
+      </note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>the</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>the</text></lyric>
+      </note>
+      <note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>bird</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>song</text></lyric>
+      </note>
+      <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>sings</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>fligh</text></lyric>
+      </note>
+    </measure>
+    <measure number="4">
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>Through</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>so</text></lyric>
+      </note>
+      <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>the</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>high</text></lyric>
+      </note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>golden</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>sky</text></lyric>
+      </note>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
+        <lyric number="1"><syllabic>single</syllabic><text>land</text></lyric>
+        <lyric number="2"><syllabic>single</syllabic><text>blue</text></lyric>
+      </note>
+      <barline location="right"><bar-style>light-heavy</bar-style></barline>
+    </measure>
+  </part>
+</score-partwise>

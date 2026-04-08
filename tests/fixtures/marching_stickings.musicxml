@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="4.0">
+  <work>
+    <work-title>Marching Stickings</work-title>
+  </work>
+  <identification>
+    <creator type="composer">ScoreForge Test</creator>
+    <encoding>
+      <software>ScoreForge</software>
+    </encoding>
+  </identification>
+  <part-list>
+    <score-part id="P1">
+      <part-name>Snare Drum</part-name>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <!-- Tests percussion with sticking markings -->
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>percussion</sign><line>2</line></clef>
+      </attributes>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><instrument id="P1-I1"/>
+        <notations><technical><stroke>up</stroke></technical></notations>
+      </note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><instrument id="P1-I1"/>
+        <notations><technical><stroke>down</stroke></technical></notations>
+      </note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><instrument id="P1-I1"/>
+        <notations><technical><stroke>up</stroke></technical></notations>
+      </note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><instrument id="P1-I1"/>
+        <notations><technical><stroke>down</stroke></technical></notations>
+      </note>
+    </measure>
+    <measure number="2">
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><instrument id="P1-I1">
+        <notations><technical><stroke>up</stroke></technical></notations>
+      </note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><instrument id="P1-I1"/>
+        <notations><technical><stroke>up</stroke></technical></notations>
+      </note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><instrument id="P1-I1"/>
+        <notations><technical><stroke>down</stroke></technical></notations>
+      </note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><instrument id="P1-I1"/>
+        <notations><technical><stroke>down</stroke></technical></notations>
+      </note>
+    </measure>
+    <measure number="3">
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><instrument id="P1-I1">
+        <notations><technical><stroke>up</stroke></technical></notations>
+      </note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><instrument id="P1-I1"/>
+        <notations><technical><stroke>down</stroke></technical></notations>
+      </note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><instrument id="P1-I1">
+        <notations><technical><stroke>up</stroke></technical></notations>
+      </note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><instrument id="P1-I1"/>
+        <notations><technical><stroke>down</stroke></technical></notations>
+      </note>
+    </measure>
+    <measure number="4">
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><voice>1</voice><type>whole</type><instrument id="P1-I1">
+        <notations><fermata/></notations>
+      </note>
+      <barline location="right"><bar-style>light-heavy</bar-style></barline>
+    </measure>
+  </part>
+  <part-list>
+    <score-part id="P1-I1">
+      <part-name>Snare</part-name>
+      <score-instrument id="P1-I1"><instrument-name>Snare Drum</instrument-name></score-instrument>
+    </score-part>
+  </part-list>
+</score-partwise>

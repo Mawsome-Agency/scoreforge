@@ -272,7 +272,7 @@ def reextract_with_context(
 
     api_kwargs = {
         "model": model,
-        "max_tokens": 16000,
+        "max_tokens": 24000,
         "messages": [
             {
                 "role": "user",

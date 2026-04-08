@@ -318,11 +318,16 @@ def _extract_two_pass(
     detail_prompt = DETAIL_PROMPT.format(
         structure_json=json.dumps(structure_data, indent=2)
     )
+    # Calculate token budget based on score complexity
+    estimated_measures = sum(len(p.get("measures", [])) for p in structure_data.get("parts", []))
+    part_count = len(structure_data.get("parts", []))
+    is_complex = estimated_measures > 8 or part_count > 2 or structure_data.get("staves", 1) > 1
+    
 
     # Build the API call kwargs
     api_kwargs = {
         "model": model,
-        "max_tokens": 16000,
+        "max_tokens": 32000 if is_complex else 16000,
         "messages": [
             {
                 "role": "user",
@@ -332,12 +337,11 @@ def _extract_two_pass(
     }
 
     # Use extended thinking for complex scores if the model supports it
-    if use_thinking and _model_supports_thinking(model):
+    if use_thinking and _model_supports_thinking(model) and is_complex:
         api_kwargs["thinking"] = {
             "type": "enabled",
             "budget_tokens": 10000,
         }
-        api_kwargs["max_tokens"] = 32000
 
     # Use streaming to handle extended thinking timeouts
     detail_msg = _create_message_streaming(client, api_kwargs)
@@ -368,9 +372,10 @@ def _extract_single_pass(
         structure_json=json.dumps(placeholder, indent=2)
     )
 
+    # Single-pass extraction processes everything at once, so always use higher limits
     api_kwargs = {
         "model": model,
-        "max_tokens": 16000,
+        "max_tokens": 32000,  # Higher limit for single-pass since no structure pre-analysis
         "messages": [
             {
                 "role": "user",
@@ -379,12 +384,12 @@ def _extract_single_pass(
         ],
     }
 
+    # Use extended thinking when requested and model supports it
     if use_thinking and _model_supports_thinking(model):
         api_kwargs["thinking"] = {
             "type": "enabled",
-            "budget_tokens": 10000,
+            "budget_tokens": 12000,  # Higher budget for full extraction
         }
-        api_kwargs["max_tokens"] = 32000
 
     message = _create_message_streaming(client, api_kwargs)
     response_text = _get_text_from_response(message)

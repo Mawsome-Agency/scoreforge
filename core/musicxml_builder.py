@@ -180,6 +180,10 @@ def _build_note(parent: etree._Element, note: Note):
     # Type
     etree.SubElement(n_elem, "type").text = note.note_type.value
 
+    # Stem direction (important for multi-voice separation)
+    if note.stem:
+        etree.SubElement(n_elem, "stem").text = note.stem
+
     # Dots
     for _ in range(note.dot_count):
         etree.SubElement(n_elem, "dot")

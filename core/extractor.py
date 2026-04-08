@@ -120,10 +120,29 @@ CRITICAL RULES — READ CAREFULLY:
    - For EACH measure, after writing it, verify the sum. If the sum is SHORT, you are MISSING NOTES — look again.
    - Do NOT move to the next measure until the current one is duration-complete.
 
-3. PITCH ACCURACY:
-   - Middle C = C4. The treble clef (G clef, line 2) places G4 on the second line.
-   - Bass clef (F clef, line 4) places F3 on the fourth line.
-   - Count lines and spaces carefully from the clef reference point.
+3. PITCH ACCURACY — FOLLOW THIS PROTOCOL FOR EVERY NOTE:
+
+   STEP 1: IDENTIFY THE CLEF FIRST (before reading any notes)
+     - Look at the LEFT SIDE of the staff for the clef symbol.
+     - Is it treble (G clef spiral), bass (F clef dots), or alto (C clef)?
+
+   STEP 2: ESTABLISH THE REFERENCE PITCH AS SPATIAL ANCHOR
+     - Treble clef: the spiral wraps around LINE 2 = G4.
+       Lines bottom-to-top: E4 G4 B4 D5 F5. Spaces bottom-to-top: F4 A4 C5 E5.
+     - Bass clef: the two dots straddle LINE 4 = F3.
+       Lines bottom-to-top: G2 B2 D3 F3 A3. Spaces bottom-to-top: A2 C3 E3 G3.
+     - Use this anchor for EVERY note — count from this known position.
+
+   STEP 3: FOR EACH NOTE, COUNT LINES/SPACES FROM ANCHOR
+     - Count the notehead's vertical position relative to the clef anchor line.
+     - Each step up/down = one diatonic step (C D E F G A B then repeat).
+     - Above the staff: continue counting upward using ledger lines.
+     - Below the staff: continue counting downward using ledger lines.
+
+   STEP 4: ASSIGN CORRECT OCTAVE
+     - Octave numbers change at C (C4, C5, C6 … or C3, C2 …).
+     - Middle C = C4 (sits on the first ledger line below the treble staff).
+
    - Remember key signature accidentals apply to ALL octaves of that note unless cancelled by a natural.
 
 4. KEY/TIME/CLEF RULES:
@@ -157,7 +176,8 @@ CRITICAL RULES — READ CAREFULLY:
 12. ANTI-HALLUCINATION (CRITICAL):
     - Extract ONLY the notes, pitches, and rhythms you can SEE in the image.
     - Do NOT generate notes from memory or prior musical knowledge about any piece.
-    - If you think you recognize a melody pattern (e.g. a famous tune), IGNORE that recognition entirely. Read each note position literally from the staff lines and spaces.
+    - NEVER infer pitches from melody patterns you might recognize. If you think you see a familiar melody, IGNORE that recognition entirely. Read ONLY the visual vertical position of each notehead on the staff.
+    - If you think you recognize a famous tune or scale pattern — stop. Do NOT use that recognition to fill in pitches. Count every note's line/space position from the clef anchor (Step 2 above) independently.
     - The measure count from the structure analysis is a guide, but always prefer what you can count in the image. Generate EXACTLY as many measures as you can see — no more.
     - LYRICS: If lyrics are printed below the staff, use them as a cross-check: each syllabic unit = exactly one note. Count syllables per measure to verify your note count.
 
@@ -167,6 +187,11 @@ CRITICAL RULES — READ CAREFULLY:
       (b) If lyrics are present: syllable count = note count
     - If either check fails, add the missing notes before closing the measure.
     - A measure with only 2 quarter notes in 4/4 time is INCOMPLETE — you are missing 2 beats.
+
+14. STAFF COUNT:
+    - Count the number of physically visible staff systems in the image.
+    - Report only staves you can see — do not add a bass staff because the music style might imply one.
+    - If you see only one staff (treble or bass), set staves=1.
 
 FINAL SELF-CHECK: After completing extraction, verify:
 - Total measure count matches what you can count in the image

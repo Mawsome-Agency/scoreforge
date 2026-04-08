@@ -83,8 +83,6 @@ def fix_musicxml(musicxml_content: str, differences: list[dict]) -> str:
     if not differences:
         return musicxml_content
 
-
-
     diff_text = json.dumps(differences, indent=2)
 
     message = api.create_message(

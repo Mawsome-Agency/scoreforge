@@ -149,9 +149,6 @@ def main(
             click.echo(f"  Final XML  : {result.final_musicxml}")
         click.echo("─────────────────────────────────────────────────────────\n")
 
-    # Exit code 0 if converged or at least one iteration ran, else 1
-    if not result.renderer_available and not result.iterations:
-        sys.exit(0)  # Graceful — renderer just not installed
     sys.exit(0)
 
 

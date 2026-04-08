@@ -6,7 +6,6 @@ fixes until the similarity score crosses the threshold or max iterations are rea
 """
 import json
 import os
-import sys
 import tempfile
 import warnings
 from dataclasses import dataclass, field
@@ -16,12 +15,7 @@ from typing import Optional
 from core import musicxml_builder
 from core.comparator import compare_images
 from core.extractor import extract_from_image
-from core.fixer import fix_musicxml, reextract_with_context
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Data structures
-# ─────────────────────────────────────────────────────────────────────────────
+from core.fixer import fix_musicxml
 
 @dataclass
 class IterationResult:
@@ -80,10 +74,6 @@ class ValidationResult:
         }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Renderer availability check (lazy — avoids hard import at module level)
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _check_renderer() -> tuple[bool, str]:
     """Return (available, renderer_name)."""
     try:
@@ -108,10 +98,6 @@ def _render(musicxml_path: str, output_png: str) -> bool:
         warnings.warn(f"Unexpected render error: {exc}")
         return False
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Main entry point
-# ─────────────────────────────────────────────────────────────────────────────
 
 def run_validation_loop(
     fixture_path: str,
@@ -239,7 +225,6 @@ def run_validation_loop(
         result.final_musicxml_content = current_musicxml
         return result
 
-    score_trend: list[float] = []
     previous_errors: list[dict] = []
 
     for iteration in range(1, max_iterations + 1):
@@ -284,7 +269,6 @@ def run_validation_loop(
             break
 
         match_score = float(cmp["match_score"])
-        score_trend.append(match_score)
 
         iter_result = IterationResult(
             iteration=iteration,

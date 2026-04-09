@@ -185,40 +185,63 @@ CRITICAL RULES — READ CAREFULLY:
 
 7. NOTE TYPES: "whole", "half", "quarter", "eighth", "16th", "32nd", "64th"
 
-8. ACCIDENTALS: "sharp", "flat", "natural", "double-sharp", "double-flat"
+8. DYNAMIC MARKINGS:
+   - Look for dynamic markings printed near notes: ppp, pp, p, mp, mf, f, ff, fff
+   - Common variations: sfz (sforzando), fp, sf, sfp
+   - Dynamics appear under staves, between staves, or above notes
+   - For EACH note with a dynamic, set "dynamic" field to the marking name (e.g., "mf", "p")
+   - If multiple notes share the same dynamic marking, set it on the FIRST note of the group
+
+9. ARTICULATION MARKINGS:
+   - Staccato: small dot above or below notehead
+   - Accent: horizontal wedge > above or below notehead
+   - Tenuto: horizontal line - above or below notehead
+   - Marcato: inverted triangle ^ above or below notehead
+   - Fermata: cap ○ or fermata symbol above or below note
+   - For EACH note with an articulation, set "articulation" field to the type (e.g., "staccato", "accent")
+   - Set "fermata": true if a fermata symbol appears over a note
+
+10. HAIRPIN DYNAMICS (crescendo/diminuendo):
+   - Crescendo: wedge opening < below staff
+   - Diminuendo: wedge closing > below staff
+   - Hairpins span multiple notes — set the starting dynamic on the first note and ending dynamic on the last note
+   - Example: < with notes → first note: dynamic="p", last note: dynamic="f"
+
+11. ACCIDENTALS: "sharp", "flat", "natural", "double-sharp", "double-flat"
    - Set "alter" in pitch: -1 for flat, 1 for sharp, 0 for natural, -2 for double-flat, 2 for double-sharp
    - Set "accidental" string only when the accidental is PRINTED on the note (not implied by key sig)
 
-9. BEAMS: "begin", "continue", "end" — for grouped eighth/sixteenth notes
+12. BEAMS: "begin", "continue", "end" — for grouped eighth/sixteenth notes
 
-10. BARLINES: null for normal, {{"style": "light-heavy"}} for final, {{"style": "light-light"}} for double
+13. BARLINES: null for normal, {{"style": "light-heavy"}} for final, {{"style": "light-light"}} for double
 
-11. TIES: A curved line connecting two notes of the SAME pitch across beats or barlines.
+14. TIES: A curved line connecting two notes of the SAME pitch across beats or barlines.
     - First note: tie_start = true
     - Second note: tie_stop = true
 
-12. ANTI-HALLUCINATION (CRITICAL):
+15. ANTI-HALLUCINATION (CRITICAL):
     - Extract ONLY the notes, pitches, and rhythms you can SEE in the image.
     - Do NOT generate notes from memory or prior musical knowledge about any piece.
     - NEVER infer pitches from melody patterns you might recognize. If you think you see a familiar melody, IGNORE that recognition entirely. Read ONLY the visual vertical position of each notehead on the staff.
     - The measure count from the structure analysis is a guide, but always prefer what you can count in the image. Generate EXACTLY as many measures as you can see — no more.
     - LYRICS: If lyrics are printed below the staff, use them as a cross-check: each syllabic unit = exactly one note. Count syllables per measure to verify your note count.
 
-13. MEASURE COMPLETENESS (PER-MEASURE GATE):
+16. MEASURE COMPLETENESS (PER-MEASURE GATE):
     - After writing each measure's notes array, pause and verify:
       (a) Duration sum = expected total (rule 2 above)
       (b) If lyrics are present: syllable count = note count
+      (c) Dynamics check: verify dynamics match what's visible in the image
     - If either check fails, add the missing notes before closing the measure.
     - A measure with only 2 quarter notes in 4/4 time is INCOMPLETE — you are missing 2 beats.
 
 
 
-14. STAFF COUNT:
+17. STAFF COUNT:
     - Count the number of physically visible staff systems in the image.
     - Report only staves you can see — do not add a bass staff because the music style might imply one.
     - If you see only one staff (treble or bass), set staves=1.
 
-FINAL SELF-CHECK: After completing extraction, verify:
+18. FINAL SELF-CHECK: After completing extraction, verify:
 - Total measure count matches what you can count in the image
 - Each measure's note durations sum to the time signature
 - No notes are missing from any measure

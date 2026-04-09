@@ -107,20 +107,8 @@ def discover_fixture_directories() -> Dict[str, Path]:
     return fixtures
 
 
-def load_comparison_json(path: Path) -> Optional[Dict[str, Any]]:
-    """Load comparison.json file safely."""
-    try:
-        if not path.exists():
-            return None
-        with open(path, 'r') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
-        console.print(f"[yellow]Warning: Could not read {path}: {e}[/yellow]")
-        return None
-
-
-def load_summary_json(path: Path) -> Optional[Dict[str, Any]]:
-    """Load summary.json file safely."""
+def _load_json(path: Path) -> Optional[Dict[str, Any]]:
+    """Load JSON file safely."""
     try:
         if not path.exists():
             return None
@@ -176,28 +164,26 @@ def collect_fixture_data(fixture_name: str, fixture_dir: Path) -> List[FixtureDa
         # Try to find comparison.json or summary.json
         comparison_file = entry / "comparison.json"
         summary_file = entry / "summary.json"
-        
+
         accuracy = 0.0
-        source_file = None
-        
+
         # Check for iter_N subdirectories first
         iter_dirs = sorted([d for d in entry.iterdir() if d.is_dir() and d.name.startswith('iter_')])
         if iter_dirs:
-            # Use the latest iteration
             latest_iter = iter_dirs[-1]
             iter_comparison = latest_iter / "comparison.json"
             if iter_comparison.exists():
-                comp_data = load_comparison_json(iter_comparison)
+                comp_data = _load_json(iter_comparison)
                 accuracy = extract_accuracy_from_comparison(comp_data)
 
         # If no iter dirs, check direct comparison.json
         if accuracy == 0.0 and comparison_file.exists():
-            comp_data = load_comparison_json(comparison_file)
+            comp_data = _load_json(comparison_file)
             accuracy = extract_accuracy_from_comparison(comp_data)
 
         # If still no accuracy, try summary.json
         if accuracy == 0.0 and summary_file.exists():
-            sum_data = load_summary_json(summary_file)
+            sum_data = _load_json(summary_file)
             accuracy = extract_accuracy_from_summary(sum_data)
         
         if accuracy > 0:

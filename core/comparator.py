@@ -8,9 +8,7 @@ import numpy as np
 from lxml import etree
 from PIL import Image
 
-# Safe XML parser — prevents XXE injection, SSRF, and Billion Laughs attacks.
-# resolve_entities=False: disables external entity expansion.
-# no_network=True: blocks any network fetch even if entities were somehow enabled.
+# Safe XML parser: blocks XXE, SSRF, and Billion Laughs attacks
 SAFE_XML_PARSER = etree.XMLParser(resolve_entities=False, no_network=True)
 import imagehash
 from core import api
@@ -430,12 +428,9 @@ def _parse_note_element(note_el, ns: str, divisions: int) -> Optional[dict]:
     dur_el = note_el.find(f"{ns}duration")
     duration = int(dur_el.text) if dur_el is not None and dur_el.text else divisions
 
-    # Normalize duration to quarter-note units for cross-divisions comparison.
-    # MusicXML allows any divisions value (music21 uses 10080, hand-crafted
-    # fixtures often use 1). A quarter note at divisions=10080 has duration=10080;
-    # at divisions=1 it has duration=1. Both are semantically one quarter note.
-    # Comparing raw integers always fails when divisions differ, so we store
-    # a normalized float (quarter_note_units = duration / divisions).
+    # Normalize to quarter-note units for cross-divisions comparison.
+    # A quarter note at divisions=10080 has duration=10080; at divisions=1 it's 1.
+    # Comparing raw integers fails when divisions differ.
     duration_normalized = duration / divisions if divisions > 0 else float(duration)
 
     # Parse type
@@ -612,9 +607,7 @@ def _compare_measures(gt_m: dict, ex_m: dict, measure_num: int) -> dict:
                 })
                 note_ok = False
 
-        # Compare duration using normalized quarter-note units so that fixtures
-        # with non-standard divisions (e.g. music21's divisions=10080) compare
-        # correctly against extractions that use divisions=1.
+        # Compare using normalized quarter-note units for cross-divisions compatibility
         gt_dur_norm = gt_n.get("duration_normalized", gt_n["duration"])
         ex_dur_norm = ex_n.get("duration_normalized", ex_n["duration"])
         if abs(gt_dur_norm - ex_dur_norm) < 0.001:

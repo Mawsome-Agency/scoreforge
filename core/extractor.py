@@ -120,10 +120,27 @@ CRITICAL RULES — READ CAREFULLY:
    - For EACH measure, after writing it, verify the sum. If the sum is SHORT, you are MISSING NOTES — look again.
    - Do NOT move to the next measure until the current one is duration-complete.
 
-3. PITCH ACCURACY:
-   - Middle C = C4. The treble clef (G clef, line 2) places G4 on the second line.
-   - Bass clef (F clef, line 4) places F3 on the fourth line.
-   - Count lines and spaces carefully from the clef reference point.
+3. PITCH ACCURACY — USE THIS EXACT 4-STEP METHOD FOR EACH NOTE:
+   CRITICAL: DO NOT GUESS MELODY. DO NOT recognize patterns from memory.
+   READ EACH NOTE LITERALLY by counting lines and spaces. Use the table below.
+   If you think you see a familiar tune, IGNORE that — count lines/spaces instead.
+
+   Step 1: Identify the clef type (G, F, or C clef) and which line it sits on.
+   Step 2: For each note, count UP from the BOTTOM LINE of the staff (NOT from clef):
+           - If notehead is ON a line: that's your line number (1=bottom, 2, 3, 4, 5=top)
+           - If notehead is IN a space: that's space number 1, 2, 3, or 4 (between lines)
+   Step 3: Map line/space to pitch using the clef reference table below.
+   Step 4: Verify by looking at the image again - did you count correctly?
+
+   TREBLE CLEF REFERENCE TABLE (G clef on line 2):
+   Line 1 (bottom) = E4, Space 1 = F4, Line 2 = G4, Space 2 = A4, Line 3 = B4, Space 3 = C5, Line 4 = D5, Space 4 = E5, Line 5 (top) = F5
+
+   BASS CLEF REFERENCE TABLE (F clef on line 4):
+   Line 1 (bottom) = G2, Space 1 = A2, Line 2 = B2, Space 2 = C3, Line 3 = D3, Space 3 = E3, Line 4 = F3, Space 4 = G3, Line 5 (top) = A3
+
+   ALTO CLEF REFERENCE TABLE (C clef on line 3):
+   Line 1 (bottom) = F3, Space 1 = G3, Line 2 = A3, Space 2 = B3, Line 3 = C4, Space 3 = D4, Line 4 = E4, Space 4 = F4, Line 5 (top) = G4
+
    - Remember key signature accidentals apply to ALL octaves of that note unless cancelled by a natural.
 
 4. KEY/TIME/CLEF RULES:
@@ -175,6 +192,37 @@ FINAL SELF-CHECK: After completing extraction, verify:
 - Pitches are correct relative to the clef and key signature
 
 REMINDER: Your entire response must be a single valid JSON object. Do NOT include any text before `{{` or after the final `}}`."""
+
+
+# ---------------------------------------------------------------------------
+# Clef pre-detection
+# ---------------------------------------------------------------------------
+
+class ClefDetector:
+    """Lightweight pre-pass clef detector.
+
+    Analyses sheet music images to identify clef types per staff, producing
+    a context block that is prepended to the detail extraction prompt.  This
+    grounds the LLM's pitch reading before it sees any notes.
+
+    The stub implementation returns an empty context block (no-op).  A full
+    implementation would use computer-vision heuristics or a dedicated small
+    model to classify G/F/C clef symbols from the image.
+    """
+
+    def process(self, image_path: str) -> dict:
+        """Detect clefs in *image_path* and return prompt context metadata.
+
+        Returns:
+            dict with keys:
+                ``context_block`` (str) — formatted clef context suitable for
+                    prepending to a detail prompt.  Empty string when no
+                    pre-analysis is available.
+                ``error`` (Optional[str]) — error message if detection failed,
+                    ``None`` on success.
+        """
+        # Stub: full implementation performs image-based clef symbol detection.
+        return {"context_block": "", "error": None}
 
 
 # ---------------------------------------------------------------------------
@@ -250,10 +298,14 @@ def extract_from_image(
         },
     }
 
+    # Pre-detect clef context to ground pitch reading in the detail pass.
+    detector = ClefDetector()
+    clef_metadata = detector.process(image_path)
+
     if two_pass:
-        return _extract_two_pass(image_block, model, use_thinking)
+        return _extract_two_pass(image_block, model, use_thinking, clef_metadata=clef_metadata)
     else:
-        return _extract_single_pass(image_block, model, use_thinking)
+        return _extract_single_pass(image_block, model, use_thinking, clef_metadata=clef_metadata)
 
 
 # ---------------------------------------------------------------------------
@@ -262,13 +314,26 @@ def extract_from_image(
 
 # Streaming handled by core.api.stream_and_collect
 
+# RC-2 config: maximum parts to extract in a single API call.
+# Scores with more parts than this threshold are split into per-chunk calls
+# to avoid token-limit truncation on large orchestral scores.
+MAX_PARTS_PER_CALL: int = 4
+
 
 def _extract_two_pass(
     image_block: dict,
     model: str,
     use_thinking: bool,
+    clef_metadata: Optional[dict] = None,
+    max_parts_per_call: int = MAX_PARTS_PER_CALL,
 ) -> Score:
-    """Two-pass extraction: structure first, then note-by-note details."""
+    """Two-pass extraction: structure first, then note-by-note details.
+
+    For scores with more than *max_parts_per_call* parts (e.g. full orchestra),
+    the detail pass is split into per-chunk API calls which are merged before
+    building the Score object.  This prevents ValueError truncation caused by
+    the model running out of output tokens mid-JSON on large multi-part scores.
+    """
 
     # --- Pass 1: Extract structure ---
     structure_kwargs = {
@@ -286,15 +351,100 @@ def _extract_two_pass(
     structure_json_str = _extract_json_from_response(structure_text)
     structure_data = json.loads(structure_json_str)
 
-    # --- Pass 2: Extract detailed notes ---
+    # --- RC-2: Decide single-call vs per-chunk extraction ---
+    parts = structure_data.get("parts", [])
+
+    if len(parts) > max_parts_per_call:
+        # Split into chunks to avoid output-token truncation on large scores.
+        merged_data = _extract_chunked(
+            image_block=image_block,
+            model=model,
+            use_thinking=use_thinking,
+            structure_data=structure_data,
+            max_parts_per_call=max_parts_per_call,
+            clef_metadata=clef_metadata,
+        )
+        return _build_score(merged_data)
+
+    # --- Pass 2: Standard single-call detail extraction ---
+    data = _extract_detail_call(
+        image_block=image_block,
+        model=model,
+        use_thinking=use_thinking,
+        structure_data=structure_data,
+        clef_metadata=clef_metadata,
+    )
+    return _build_score(data)
+
+
+def _extract_chunked(
+    image_block: dict,
+    model: str,
+    use_thinking: bool,
+    structure_data: dict,
+    max_parts_per_call: int,
+    clef_metadata: Optional[dict],
+) -> dict:
+    """Extract details part-by-part and merge into a single JSON dict.
+
+    Groups parts into chunks of *max_parts_per_call* and issues a separate
+    API call for each chunk.  Results are stitched together by appending the
+    ``parts`` lists from each response.
+    """
+    parts = structure_data.get("parts", [])
+    chunks = [parts[i : i + max_parts_per_call] for i in range(0, len(parts), max_parts_per_call)]
+
+    merged: dict = {"title": None, "composer": None, "parts": []}
+
+    for chunk_parts in chunks:
+        # Build a structure snapshot containing only this chunk's parts.
+        chunk_structure = dict(structure_data)
+        chunk_structure["parts"] = chunk_parts
+
+        chunk_data = _extract_detail_call(
+            image_block=image_block,
+            model=model,
+            use_thinking=use_thinking,
+            structure_data=chunk_structure,
+            clef_metadata=clef_metadata,
+        )
+
+        # Promote title/composer from the first chunk that has them.
+        if merged["title"] is None and chunk_data.get("title"):
+            merged["title"] = chunk_data["title"]
+        if merged["composer"] is None and chunk_data.get("composer"):
+            merged["composer"] = chunk_data["composer"]
+
+        merged["parts"].extend(chunk_data.get("parts", []))
+
+    return merged
+
+
+def _extract_detail_call(
+    image_block: dict,
+    model: str,
+    use_thinking: bool,
+    structure_data: dict,
+    clef_metadata: Optional[dict],
+) -> dict:
+    """Issue a single detail-extraction API call and return the parsed JSON dict.
+
+    Handles:
+    - RC-1 token limits (64 k base, 128 k with extended thinking)
+    - Optional clef_metadata context block prepended to the prompt
+    """
     detail_prompt = DETAIL_PROMPT.format(
         structure_json=json.dumps(structure_data, indent=2)
     )
 
-    # Build the API call kwargs
-    api_kwargs = {
+    # Prepend clef context when available (non-empty context_block only).
+    if clef_metadata and clef_metadata.get("context_block"):
+        detail_prompt = clef_metadata["context_block"] + "\n\n" + detail_prompt
+
+    # RC-1: raised from 16 000 → 64 000 (base) and 32 000 → 128 000 (thinking).
+    api_kwargs: dict = {
         "model": model,
-        "max_tokens": 16000,
+        "max_tokens": 64000,
         "messages": [
             {
                 "role": "user",
@@ -303,20 +453,17 @@ def _extract_two_pass(
         ],
     }
 
-    # Use extended thinking for complex scores if the model supports it
     if use_thinking and _model_supports_thinking(model):
         api_kwargs["thinking"] = {
             "type": "enabled",
             "budget_tokens": 10000,
         }
-        # Extended thinking requires higher max_tokens
-        api_kwargs["max_tokens"] = 32000
+        # RC-1: raised from 32 000 → 128 000 for extended-thinking path.
+        api_kwargs["max_tokens"] = 128000
 
     response_text = api.stream_and_collect(**api_kwargs)
     json_str = _extract_json_from_response(response_text)
-    data = json.loads(json_str)
-
-    return _build_score(data)
+    return json.loads(json_str)
 
 
 # ---------------------------------------------------------------------------
@@ -327,6 +474,7 @@ def _extract_single_pass(
     image_block: dict,
     model: str,
     use_thinking: bool,
+    clef_metadata: Optional[dict] = None,
 ) -> Score:
     """Single-pass extraction with the full detail prompt."""
 
@@ -336,9 +484,14 @@ def _extract_single_pass(
         structure_json=json.dumps(placeholder, indent=2)
     )
 
-    api_kwargs = {
+    # Prepend clef context when available (non-empty context_block only).
+    if clef_metadata and clef_metadata.get("context_block"):
+        detail_prompt = clef_metadata["context_block"] + "\n\n" + detail_prompt
+
+    # RC-1: raised from 16 000 → 64 000 (base) and 32 000 → 128 000 (thinking).
+    api_kwargs: dict = {
         "model": model,
-        "max_tokens": 16000,
+        "max_tokens": 64000,
         "messages": [
             {
                 "role": "user",
@@ -352,7 +505,7 @@ def _extract_single_pass(
             "type": "enabled",
             "budget_tokens": 10000,
         }
-        api_kwargs["max_tokens"] = 32000
+        api_kwargs["max_tokens"] = 128000
 
     response_text = api.stream_and_collect(**api_kwargs)
     json_str = _extract_json_from_response(response_text)

@@ -98,7 +98,11 @@ Output a JSON object with this exact structure:
               "articulation": null,
               "lyrics": [],
               "fermata": false,
-              "grace": false
+              "grace": false,
+              "tuplet_actual": null,
+              "tuplet_normal": null,
+              "tuplet_start": false,
+              "tuplet_stop": false
             }}
           ],
           "barline_right": null,
@@ -197,14 +201,23 @@ CRITICAL RULES — READ CAREFULLY:
     - First note: tie_start = true
     - Second note: tie_stop = true
 
-12. ANTI-HALLUCINATION (CRITICAL):
+12. TUPLETS:
+    - Tuplets are groups of notes that modify the regular subdivision of the beat.
+    - Common tuplets: triplets (3 notes in time of 2), quintuplets (5 notes in time of 4), sextuplets (6 notes in time of 4).
+    - For the FIRST note of a tuplet group: tuplet_start = true, set tuplet_actual = [total notes], tuplet_normal = [normal duration notes replace]
+      Example: For a triplet of eighth notes, tuplet_start = true, tuplet_actual = 3, tuplet_normal = 2
+    - For subsequent notes within the tuplet group: leave tuplet fields as null
+    - For the LAST note of a tuplet group: tuplet_stop = true
+    - ONLY set tuplet fields when you see a specific tuplet bracket or number notation (e.g., "3" over beam). Do NOT guess.
+
+13. ANTI-HALLUCINATION (CRITICAL):
     - Extract ONLY the notes, pitches, and rhythms you can SEE in the image.
     - Do NOT generate notes from memory or prior musical knowledge about any piece.
     - NEVER infer pitches from melody patterns you might recognize. If you think you see a familiar melody, IGNORE that recognition entirely. Read ONLY the visual vertical position of each notehead on the staff.
     - The measure count from the structure analysis is a guide, but always prefer what you can count in the image. Generate EXACTLY as many measures as you can see — no more.
     - LYRICS: If lyrics are printed below the staff, use them as a cross-check: each syllabic unit = exactly one note. Count syllables per measure to verify your note count.
 
-13. MEASURE COMPLETENESS (PER-MEASURE GATE):
+14. MEASURE COMPLETENESS (PER-MEASURE GATE):
     - After writing each measure's notes array, pause and verify:
       (a) Duration sum = expected total (rule 2 above)
       (b) If lyrics are present: syllable count = note count
@@ -213,7 +226,7 @@ CRITICAL RULES — READ CAREFULLY:
 
 
 
-14. STAFF COUNT:
+15. STAFF COUNT:
     - Count the number of physically visible staff systems in the image.
     - Report only staves you can see — do not add a bass staff because the music style might imply one.
     - If you see only one staff (treble or bass), set staves=1.
@@ -273,7 +286,7 @@ def encode_pdf_pages(pdf_path: str) -> list[tuple[str, str]]:
 
 def extract_from_image(
     image_path: str,
-    model: str = "claude-sonnet-4-6",
+    model: str = "claude-sonnet-4-5-20250929",
     use_thinking: bool = True,
     two_pass: bool = True,
 ) -> Score:
@@ -417,7 +430,7 @@ def _extract_single_pass(
 
 def _model_supports_thinking(model: str) -> bool:
     """Check if the model supports extended thinking."""
-    thinking_models = ["claude-sonnet-4-5", "claude-sonnet-4-6", "claude-3-7-sonnet"]
+    thinking_models = ["claude-sonnet-4-5", "claude-3-7-sonnet"]
     return any(m in model for m in thinking_models)
 
 

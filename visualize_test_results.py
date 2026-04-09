@@ -47,43 +47,81 @@ def parse_timestamp(timestamp_str: str) -> Optional[datetime]:
     return None
 
 
+def collect_test_report_results(results_dir: Path) -> List[Dict]:
+    """Collect results from test_report.json files (actual format from test_harness.py)."""
+    results = []
+
+    # Look for historical test_report.json files
+    for report_file in sorted(results_dir.rglob("test_report*.json")):
+        try:
+            with open(report_file, "r") as f:
+                data = json.load(f)
+
+            timestamp = None
+            if "timestamp" in data:
+                timestamp = parse_timestamp(data["timestamp"])
+            else:
+                # Use file modification time as fallback
+                timestamp = datetime.fromtimestamp(report_file.stat().st_mtime)
+
+            if timestamp is None:
+                continue
+
+            # Process each test result
+            for item in data.get("results", []):
+                overall_score = item.get("scores", {}).get("overall", 0.0)
+
+                results.append({
+                    "fixture": item["name"],
+                    "timestamp": timestamp,
+                    "scores": item.get("scores", {}),
+                    "passed": item.get("passed", False),
+                    "error": item.get("error"),
+                    "report_file": str(report_file.relative_to(results_dir)),
+                })
+        except (json.JSONDecodeError, KeyError, IOError):
+            continue
+
+    return results
+
+
 def collect_index_results(results_dir: Path) -> List[Dict]:
-    """Collect results from index.json file."""
+    """Collect results from index.json file (legacy format)."""
     index_file = results_dir / "index.json"
     if not index_file.exists():
         return []
-    
+
     try:
         with open(index_file, "r") as f:
             data = json.load(f)
-        
+
         # Handle both formats: direct list and {runs: [...]}
         runs = data if isinstance(data, list) else data.get("runs", [])
-        
+
         results = []
         for item in runs:
             if "fixture" not in item:
                 continue
-            
+
             # Handle both best_score and overall score
             overall_score = None
             if "best_score" in item:
                 overall_score = item["best_score"]
             elif "overall" in item:
                 overall_score = item["overall"]
-            
+
             if overall_score is None:
                 continue
-            
+
             timestamp = None
             if "timestamp" in item:
                 timestamp = parse_timestamp(item["timestamp"])
             elif "run_id" in item:
                 timestamp = parse_timestamp(item["run_id"])
-            
+
             if timestamp is None:
                 continue
-            
+
             # Extract scores
             scores = {"overall": overall_score}
             if "pitch_accuracy" in item:
@@ -92,14 +130,14 @@ def collect_index_results(results_dir: Path) -> List[Dict]:
                 scores["rhythm_accuracy"] = item["rhythm_accuracy"]
             if "note_accuracy" in item:
                 scores["note_accuracy"] = item["note_accuracy"]
-            
+
             results.append({
                 "fixture": item["fixture"],
                 "timestamp": timestamp,
                 "scores": scores,
                 "run_id": item.get("run_id", ""),
             })
-        
+
         return results
     except (json.JSONDecodeError, KeyError, IOError):
         return []
@@ -107,36 +145,42 @@ def collect_index_results(results_dir: Path) -> List[Dict]:
 
 def collect_historical_results(results_dir: Path) -> Dict[str, List[Dict]]:
     """Collect all historical test results by fixture."""
-    # First try index.json which has better summary data
-    index_results = collect_index_results(results_dir)
-    
+    # First try test_report.json files (actual format from test_harness)
+    test_report_results = collect_test_report_results(results_dir)
+
     fixture_data: Dict[str, List[Dict]] = defaultdict(list)
-    for result in index_results:
+    for result in test_report_results:
         fixture_data[result["fixture"]].append(result)
-    
+
+    # If no test_report results, try legacy index.json
+    if not fixture_data:
+        index_results = collect_index_results(results_dir)
+        for result in index_results:
+            fixture_data[result["fixture"]].append(result)
+
     # If no index results, fall back to scanning directories
     if not fixture_data:
         if not results_dir.exists():
             return fixture_data
-        
+
         for fixture_dir in results_dir.iterdir():
             if not fixture_dir.is_dir():
                 continue
-            
+
             fixture_name = fixture_dir.name
-            
+
             for run_dir in fixture_dir.iterdir():
                 if not run_dir.is_dir():
                     continue
-                
+
                 report_file = run_dir / "report.json"
                 if not report_file.exists():
                     continue
-                
+
                 try:
                     with open(report_file, "r") as f:
                         data = json.load(f)
-                    
+
                     timestamp = None
                     if run_dir.name.startswith("20"):
                         timestamp = parse_timestamp(run_dir.name)
@@ -144,16 +188,16 @@ def collect_historical_results(results_dir: Path) -> Dict[str, List[Dict]]:
                         timestamp = parse_timestamp(data["timestamp"])
                     elif data.get("iterations"):
                         timestamp = parse_timestamp(data["iterations"][0].get("timestamp", ""))
-                    
+
                     if timestamp is None:
                         continue
-                    
+
                     scores = {}
                     if "scores" in data:
                         scores = data["scores"]
                     elif "best_score" in data:
                         scores = {"overall": data["best_score"]}
-                    
+
                     fixture_data[fixture_name].append({
                         "timestamp": timestamp,
                         "run_dir": run_dir,
@@ -161,7 +205,7 @@ def collect_historical_results(results_dir: Path) -> Dict[str, List[Dict]]:
                     })
                 except (json.JSONDecodeError, KeyError, IOError, IndexError):
                     continue
-    
+
     return fixture_data
 
 

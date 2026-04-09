@@ -8,6 +8,7 @@ from pathlib import Path
 
 RESULTS_DIR = Path(__file__).parent / "results"
 VIEWER_DIR = Path(__file__).parent / "viewer"
+DASHBOARD_DIR = Path(__file__).parent / "dashboard"
 
 
 def build_index():
@@ -69,6 +70,9 @@ def build_index():
                     run_entry["notes_matched"] = last.get("total_notes_matched", last.get("note_count"))
                     run_entry["notes_total"] = last.get("total_notes_gt", last.get("note_count"))
 
+            # Add failure patterns for dashboard
+            run_entry["failure_patterns"] = summary.get("failure_patterns", {})
+
             runs.append(run_entry)
 
     index = {"runs": runs, "total": len(runs)}
@@ -81,8 +85,101 @@ def build_index():
     return index_path
 
 
+def build_dashboard_index():
+    """Build unified dashboard index from all result types."""
+    dashboard_data = {
+        "fixtures": {},
+        "baselines": [],
+        "summary": {
+            "total_fixtures": 0,
+            "avg_accuracy": 0.0,
+            "fixtures_95_plus": 0
+        }
+    }
+
+    # Load iteration summary for fixture-level data
+    iter_summary_path = RESULTS_DIR / "iteration_summary.json"
+    if iter_summary_path.exists():
+        with open(iter_summary_path) as f:
+            iterations = json.load(f)
+
+        for item in iterations:
+            fixture_name = item.get("fixture", "")
+            if not fixture_name:
+                continue
+
+            dashboard_data["fixtures"][fixture_name] = {
+                "name": fixture_name,
+                "fixture_path": item.get("fixture_path", ""),
+                "best_score": item.get("best_score", 0),
+                "total_iterations": item.get("total_iterations", 0),
+                "converged": item.get("converged", False),
+                "failure_patterns": item.get("failure_patterns", {}),
+                "run_dir": item.get("run_dir", ""),
+                "latest_accuracy": 0.0
+            }
+
+            # Get latest accuracy from iterations
+            iters = item.get("iterations", [])
+            if iters:
+                latest = iters[-1]
+                scores = latest.get("scores", {})
+                dashboard_data["fixtures"][fixture_name]["latest_accuracy"] = scores.get("overall", 0)
+
+    # Load baseline results for difficulty tiers and failure modes
+    baseline_dir = RESULTS_DIR / "baseline"
+    if baseline_dir.exists():
+        for baseline_file in sorted(baseline_dir.glob("*/baseline_results.json")):
+            with open(baseline_file) as f:
+                baseline = json.load(f)
+
+            for fixture in baseline.get("fixtures", []):
+                fixture_name = fixture.get("name", "")
+                if fixture_name in dashboard_data["fixtures"]:
+                    dashboard_data["fixtures"][fixture_name]["difficulty"] = fixture.get("difficulty", "medium")
+                    dashboard_data["fixtures"][fixture_name]["tags"] = fixture.get("tags", [])
+
+                # Add failure modes to fixtures
+                if fixture_name not in dashboard_data["fixtures"]:
+                    dashboard_data["fixtures"][fixture_name] = {
+                        "name": fixture_name,
+                        "difficulty": fixture.get("difficulty", "medium"),
+                        "tags": fixture.get("tags", []),
+                        "best_score": 0,
+                        "total_iterations": 0,
+                        "converged": False
+                    }
+
+                if "failure_modes" not in dashboard_data["fixtures"][fixture_name]:
+                    dashboard_data["fixtures"][fixture_name]["failure_modes"] = []
+
+                dashboard_data["fixtures"][fixture_name]["failure_modes"].extend(
+                    fixture.get("failure_modes", [])
+                )
+
+            dashboard_data["baselines"].append(baseline)
+
+    # Calculate summary stats
+    fixtures = dashboard_data["fixtures"]
+    if fixtures:
+        total_accuracy = sum(f.get("best_score", 0) for f in fixtures.values())
+        dashboard_data["summary"]["total_fixtures"] = len(fixtures)
+        dashboard_data["summary"]["avg_accuracy"] = round(total_accuracy / len(fixtures), 1)
+        dashboard_data["summary"]["fixtures_95_plus"] = sum(
+            1 for f in fixtures.values() if f.get("best_score", 0) >= 95
+        )
+
+    # Write dashboard index
+    dashboard_index_path = RESULTS_DIR / "dashboard_index.json"
+    with open(dashboard_index_path, "w") as f:
+        json.dump(dashboard_data, f, indent=2)
+
+    print(f"Built dashboard index with {len(fixtures)} fixtures -> {dashboard_index_path}")
+    return dashboard_index_path
+
+
 def deploy():
-    """Rsync results + viewer to mawsome.agency server."""
+    """Rsync results + viewer to mawsome.agency web server."""
     deploy_key = os.environ.get("DEPLOY_KEY_PATH", "/home/deployer/.ssh/maw_deploy")
     deploy_host = os.environ.get("DEPLOY_HOST", "147.182.245.49")
     deploy_port = os.environ.get("DEPLOY_PORT", "22")
@@ -105,6 +202,18 @@ def deploy():
             "-e", ssh_cmd,
             str(VIEWER_DIR) + "/",
             f"{remote}:/var/www/scoreforge/",
+        ],
+        check=True,
+    )
+
+    # Sync dashboard files
+    print("Syncing dashboard...")
+    subprocess.run(
+        [
+            "rsync", "-avz", "--delete",
+            "-e", ssh_cmd,
+            str(DASHBOARD_DIR) + "/",
+            f"{remote}:/var/www/scoreforge/dashboard/",
         ],
         check=True,
     )
@@ -133,4 +242,5 @@ def deploy():
 
 if __name__ == "__main__":
     build_index()
+    build_dashboard_index()
     deploy()

@@ -88,7 +88,7 @@ Output a JSON object with this exact structure:
               "is_chord": false,
               "voice": 1,
               "staff": 1,
-              "stem": null,
+              "stem": "up",
               "tie_start": false,
               "tie_stop": false,
               "slur_start": false,
@@ -112,6 +112,17 @@ Output a JSON object with this exact structure:
     }}
   ]
 }}
+
+
+STEM OBSERVATION (CRITICAL — DO THIS FOR EVERY NOTE):
+- Look at EACH note carefully BEFORE assigning voice
+- Is there a visible stem line? (thin vertical line extending from notehead)
+- Stem UP (extends ABOVE notehead): indicates voice 1
+- Stem DOWN (extends BELOW notehead): indicates voice 2
+- No stem (whole/half notes, rests): use fallback rules below
+- ALWAYS record stem direction when visible: "up" or "down"
+- When no stem is visible, set stem to "none"
+
 
 CRITICAL RULES — READ CAREFULLY:
 

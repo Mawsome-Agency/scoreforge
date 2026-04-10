@@ -763,3 +763,244 @@ class TestEdgeCases:
         }
         result = _compare_measures(gt, ex, 1)
         assert result["time_correct"] is False
+
+
+# ============================================================================
+# 12. Ambiguous Stem Scenarios — tests for voice assignment when stems absent
+# ============================================================================
+
+class TestAmbiguousStemScenarios:
+    """Test voice assignment when stems are absent or ambiguous."""
+
+    def test_whole_note_no_stem_voice_fallback(self):
+        """Whole note without stem should accept any voice (LLM decides by pitch)."""
+        data = {
+            "type": "whole",
+            "duration": 4,
+            "pitch": {"step": "C", "octave": 4},
+            "voice": 1,
+            "stem": "none",
+        }
+        from core.extractor import _build_note as extractor_build_note
+        note = extractor_build_note(data)
+        assert note.stem == "none"
+        assert note.voice == 1
+
+    def test_half_note_no_stem_voice_fallback(self):
+        """Half note without stem should accept any voice (LLM decides by pitch)."""
+        data = {
+            "type": "half",
+            "duration": 2,
+            "pitch": {"step": "D", "octave": 4},
+            "voice": 2,
+            "stem": "none",
+        }
+        from core.extractor import _build_note as extractor_build_note
+        note = extractor_build_note(data)
+        assert note.stem == "none"
+        assert note.voice == 2
+
+    def test_chord_voice_assignment_lowest_note(self):
+        """Chord voice assignment: lowest note gets voice, others inherit."""
+        data_lowest = {
+            "type": "quarter",
+            "duration": 1,
+            "pitch": {"step": "C", "octave": 4},
+            "voice": 1,
+            "is_chord": False,
+            "stem": "up",
+        }
+        data_chord1 = {
+            "type": "quarter",
+            "duration": 1,
+            "pitch": {"step": "E", "octave": 4},
+            "is_chord": True,
+            "stem": "up",
+        }
+        data_chord2 = {
+            "type": "quarter",
+            "duration": 1,
+            "pitch": {"step": "G", "octave": 4},
+            "is_chord": True,
+            "stem": "up",
+        }
+        from core.extractor import _build_note as extractor_build_note
+        note_lowest = extractor_build_note(data_lowest)
+        note_chord1 = extractor_build_note(data_chord1)
+        note_chord2 = extractor_build_note(data_chord2)
+        assert note_lowest.voice == 1
+        assert note_chord1.is_chord is True
+        assert note_chord2.is_chord is True
+
+    def test_pitch_based_fallback_lower_note_voice_1(self):
+        """Lower pitch notes without stems default to voice 1."""
+        data = {
+            "type": "whole",
+            "duration": 4,
+            "pitch": {"step": "C", "octave": 3},
+            "stem": "none",
+            "voice": 1,
+        }
+        from core.extractor import _build_note as extractor_build_note
+        note = extractor_build_note(data)
+        assert note.stem == "none"
+        assert note.voice == 1
+
+    def test_pitch_based_fallback_higher_note_voice_2(self):
+        """Higher pitch notes without stems default to voice 2."""
+        data = {
+            "type": "whole",
+            "duration": 4,
+            "pitch": {"step": "E", "octave": 4},
+            "stem": "none",
+            "voice": 2,
+        }
+        from core.extractor import _build_note as extractor_build_note
+        note = extractor_build_note(data)
+        assert note.stem == "none"
+        assert note.voice == 2
+
+
+# ============================================================================
+# 13. Voice Assignment Fallbacks — tests for fallback logic
+# ============================================================================
+
+class TestVoiceAssignmentFallbacks:
+    """Test fallback logic for voice assignment."""
+
+    def test_stem_up_voice_1(self):
+        """Stem up always maps to voice 1 regardless of pitch."""
+        data = {
+            "type": "quarter",
+            "duration": 1,
+            "pitch": {"step": "E", "octave": 5},
+            "stem": "up",
+            "voice": 1,
+        }
+        from core.extractor import _build_note as extractor_build_note
+        note = extractor_build_note(data)
+        assert note.stem == "up"
+        assert note.voice == 1
+
+    def test_stem_down_voice_2(self):
+        """Stem down always maps to voice 2 regardless of pitch."""
+        data = {
+            "type": "quarter",
+            "duration": 1,
+            "pitch": {"step": "C", "octave": 3},
+            "stem": "down",
+            "voice": 2,
+        }
+        from core.extractor import _build_note as extractor_build_note
+        note = extractor_build_note(data)
+        assert note.stem == "down"
+        assert note.voice == 2
+
+    def test_stem_overrides_pitch_heuristic(self):
+        """When stem is visible, it overrides pitch-based heuristics."""
+        data = {
+            "type": "quarter",
+            "duration": 1,
+            "pitch": {"step": "E", "octave": 5},
+            "stem": "down",
+            "voice": 2,
+        }
+        from core.extractor import _build_note as extractor_build_note
+        note = extractor_build_note(data)
+        assert note.stem == "down"
+        assert note.voice == 2
+
+    def test_rest_default_voice_1(self):
+        """Rests default to voice 1 when not explicitly assigned."""
+        data = {
+            "type": "quarter",
+            "duration": 1,
+            "is_rest": True,
+            "voice": 1,
+            "stem": "none",
+        }
+        from core.extractor import _build_note as extractor_build_note
+        note = extractor_build_note(data)
+        assert note.is_rest is True
+        assert note.voice == 1
+
+    def test_rest_explicit_voice_2(self):
+        """Rests can be assigned to voice 2 when explicitly notated."""
+        data = {
+            "type": "half",
+            "duration": 2,
+            "is_rest": True,
+            "voice": 2,
+            "stem": "none",
+        }
+        from core.extractor import _build_note as extractor_build_note
+        note = extractor_build_note(data)
+        assert note.is_rest is True
+        assert note.voice == 2
+
+    def test_tied_note_voice_inheritance(self):
+        """Tied continuation inherits voice from origin note."""
+        data_origin = {
+            "type": "quarter",
+            "duration": 1,
+            "pitch": {"step": "C", "octave": 4},
+            "voice": 1,
+            "stem": "up",
+            "tie_start": True,
+            "tie_stop": False,
+        }
+        data_continuation = {
+            "type": "quarter",
+            "duration": 1,
+            "pitch": {"step": "C", "octave": 4},
+            "voice": 1,
+            "stem": "up",
+            "tie_start": False,
+            "tie_stop": True,
+        }
+        from core.extractor import _build_note as extractor_build_note
+        note_origin = extractor_build_note(data_origin)
+        note_cont = extractor_build_note(data_continuation)
+        assert note_origin.voice == 1
+        assert note_cont.voice == 1
+        assert note_origin.tie_start is True
+        assert note_cont.tie_stop is True
+
+    def test_beam_notes_same_voice(self):
+        """All notes in a beam group should share the same voice."""
+        data_beam1 = {
+            "type": "eighth",
+            "duration": 1,
+            "pitch": {"step": "C", "octave": 4},
+            "voice": 1,
+            "stem": "up",
+            "beam": "begin",
+        }
+        data_beam2 = {
+            "type": "eighth",
+            "duration": 1,
+            "pitch": {"step": "E", "octave": 4},
+            "voice": 1,
+            "stem": "up",
+            "beam": "end",
+        }
+        from core.extractor import _build_note as extractor_build_note
+        note_beam1 = extractor_build_note(data_beam1)
+        note_beam2 = extractor_build_note(data_beam2)
+        assert note_beam1.voice == 1
+        assert note_beam2.voice == 1
+        assert note_beam1.beam == "begin"
+        assert note_beam2.beam == "end"
+
+    def test_voice_assignment_musicxml_emission(self):
+        """Verify voice assignment emits correctly to MusicXML."""
+        parent = etree.Element("measure")
+        note1 = _make_note(voice=1, stem="up", pitch_step="C")
+        note2 = _make_note(voice=2, stem="down", pitch_step="E")
+        _build_notes_multivoice(parent, [note1, note2])
+
+        notes = parent.findall("note")
+        assert notes[0].find("voice").text == "1"
+        assert notes[0].find("stem").text == "up"
+        assert notes[1].find("voice").text == "2"
+        assert notes[1].find("stem").text == "down"

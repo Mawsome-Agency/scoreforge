@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScoreForge — Runs Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        .header {
+            background: #1a1a2e;
+            border-bottom: 2px solid #e94560;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #e94560;
+        }
+        .header h1 span { color: #a0a0a0; font-weight: 400; font-size: 14px; }
+        .header .nav { display: flex; gap: 16px; }
+        .header .nav a {
+            color: #888;
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+        .header .nav a:hover, .header .nav a.active { color: #e94560; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+        /* Stats cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #1a1a1a;
+            border: 1px solid #222;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .stat-card .label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #e0e0e0;
+        }
+        .stat-card .value.green { color: #00ff88; }
+        .stat-card .value.red { color: #ff4444; }
+        .stat-card .value.yellow { color: #ffd700; }
+        .stat-card .value.blue { color: #00d4ff; }
+
+        /* Model breakdown table */
+        .model-breakdown {
+            background: #1a1a1a;
+            border: 1px solid #222;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .model-breakdown h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .model-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .model-table th {
+            text-align: left;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #666;
+            border-bottom: 1px solid #333;
+        }
+        .model-table td {
+            padding: 8px 12px;
+            font-size: 13px;
+            border-bottom: 1px solid #222;
+        }
+        .model-table tr:last-child td { border-bottom: none; }
+
+        /* Filters */
+        .filters {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .filter-group label {
+            font-size: 13px;
+            color: #888;
+        }
+        .filter-group select,
+        .filter-group input {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        /* Runs table */
+        .runs-table {
+            background: #1a1a1a;
+            border: 1px solid #222;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .runs-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .runs-table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #333;
+            background: #151515;
+        }
+        .runs-table td {
+            padding: 12px 16px;
+            font-size: 13px;
+            border-bottom: 1px solid #222;
+        }
+        .runs-table tr:last-child td { border-bottom: none; }
+        .runs-table tr:hover { background: #1a1a2e; }
+
+        .job-id {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            color: #e94560;
+            cursor: pointer;
+        }
+        .job-id:hover { text-decoration: underline; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-completed { background: #002a00; color: #00ff88; }
+        .status-failed { background: #2a0000; color: #ff4444; }
+        .status-pending { background: #2a2a00; color: #ffd700; }
+        .status-running { background: #002a2a; color: #00d4ff; }
+
+        .model-info {
+            font-size: 12px;
+            color: #888;
+        }
+        .model-info .provider {
+            color: #e0e0e0;
+            font-weight: 600;
+        }
+
+        .upload-source {
+            font-size: 12px;
+            color: #888;
+        }
+        .upload-source.agent { color: #e94560; }
+
+        .timestamp {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .duration {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .result-summary {
+            font-size: 12px;
+            color: #666;
+        }
+        .result-summary.error {
+            color: #ff4444;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #444;
+        }
+        .empty-state .icon { font-size: 64px; margin-bottom: 12px; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ScoreForge <span>Runs Dashboard</span></h1>
+        <div class="nav">
+            <a href="index.html">Upload</a>
+            <a href="runs.html" class="active">Runs</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Stats cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">Total Runs</div>
+                <div class="value" id="stat-total">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Completed</div>
+                <div class="value green" id="stat-completed">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Failed</div>
+                <div class="value red" id="stat-failed">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Pending</div>
+                <div class="value yellow" id="stat-pending">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Running</div>
+                <div class="value blue" id="stat-running">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Pass Rate</div>
+                <div class="value" id="stat-pass-rate">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Avg Duration</div>
+                <div class="value" id="stat-avg-duration">-</div>
+            </div>
+        </div>
+
+        <!-- Model breakdown -->
+        <div class="model-breakdown" id="model-breakdown-section" style="display: none;">
+            <h3>Model Performance</h3>
+            <table class="model-table">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Total</th>
+                        <th>Completed</th>
+                        <th>Failed</th>
+                        <th>Success Rate</th>
+                    </tr>
+                </thead>
+                <tbody id="model-table-body">
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <div class="filter-group">
+                <label for="filter-status">Status:</label>
+                <select id="filter-status">
+                    <option value="">All</option>
+                    <option value="pending">Pending</option>
+                    <option value="running">Running</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filter-model">Model:</label>
+                <select id="filter-model">
+                    <option value="">All</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filter-source">Source:</label>
+                <input type="text" id="filter-source" placeholder="Search...">
+            </div>
+        </div>
+
+        <!-- Runs table -->
+        <div class="runs-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Job ID</th>
+                        <th>Filename</th>
+                        <th>Status</th>
+                        <th>Model</th>
+                        <th>Source</th>
+                        <th>Created</th>
+                        <th>Duration</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody id="runs-table-body">
+                    <tr>
+                        <td colspan="8" class="loading">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/scoreforge/api';
+
+        let refreshInterval = null;
+
+        async function loadRuns() {
+            const status = document.getElementById('filter-status').value;
+            const model = document.getElementById('filter-model').value;
+            const source = document.getElementById('filter-source').value;
+
+            let url = `${API_BASE}/runs`;
+            const params = new URLSearchParams();
+            if (status) params.append('status', status);
+            if (model) params.append('model_provider', model);
+            if (source) params.append('upload_source', source);
+            if (params.toString()) url += `?${params.toString()}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                updateStats(data.stats);
+                updateModelBreakdown(data.stats.model_breakdown);
+                updateRunsTable(data.runs);
+                updateModelFilter(data.stats.model_breakdown);
+
+                // Auto-refresh if there are running or pending jobs
+                const hasActive = data.stats.running > 0 || data.stats.pending > 0;
+                if (hasActive && !refreshInterval) {
+                    refreshInterval = setInterval(loadRuns, 30000);
+                } else if (!hasActive && refreshInterval) {
+                    clearInterval(refreshInterval);
+                    refreshInterval = null;
+                }
+            } catch (error) {
+                console.error('Failed to load runs:', error);
+                document.getElementById('runs-table-body').innerHTML =
+                    '<tr><td colspan="8" class="empty-state">Failed to load runs</td></tr>';
+            }
+        }
+
+        function updateStats(stats) {
+            document.getElementById('stat-total').textContent = stats.total;
+            document.getElementById('stat-completed').textContent = stats.completed;
+            document.getElementById('stat-failed').textContent = stats.failed;
+            document.getElementById('stat-pending').textContent = stats.pending;
+            document.getElementById('stat-running').textContent = stats.running;
+            document.getElementById('stat-pass-rate').textContent = stats.pass_rate + '%';
+            document.getElementById('stat-avg-duration').textContent = formatDuration(stats.avg_duration);
+        }
+
+        function updateModelBreakdown(breakdown) {
+            const section = document.getElementById('model-breakdown-section');
+            const tbody = document.getElementById('model-table-body');
+
+            if (!breakdown || Object.keys(breakdown).length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            tbody.innerHTML = '';
+
+            for (const [model, stats] of Object.entries(breakdown)) {
+                const successRate = stats.total > 0
+                    ? ((stats.completed / stats.total) * 100).toFixed(1)
+                    : '0.0';
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="model-info"><span class="provider">${model}</span></td>
+                    <td>${stats.total}</td>
+                    <td class="value green">${stats.completed}</td>
+                    <td class="value red">${stats.failed}</td>
+                    <td>${successRate}%</td>
+                `;
+                tbody.appendChild(row);
+            }
+        }
+
+        function updateRunsTable(runs) {
+            const tbody = document.getElementById('runs-table-body');
+
+            if (!runs || runs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><div class="icon">📭</div><div>No runs found</div></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+
+            for (const run of runs) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><span class="job-id" onclick="viewJob('${run.id}')">${run.id.substring(0, 8)}...</span></td>
+                    <td>${escapeHtml(run.filename || 'upload')}</td>
+                    <td><span class="status-badge status-${run.status}">${run.status}</span></td>
+                    <td class="model-info">
+                        ${run.model_provider ? `<span class="provider">${run.model_provider}</span>` : 'Unknown'}
+                        ${run.model_name ? ` / ${run.model_name}` : ''}
+                    </td>
+                    <td class="upload-source ${run.upload_source?.includes('agent') ? 'agent' : ''}">
+                        ${escapeHtml(run.upload_source || 'anonymous')}
+                    </td>
+                    <td class="timestamp">${formatTimestamp(run.created_at)}</td>
+                    <td class="duration">${formatDuration(run.duration_seconds)}</td>
+                    <td class="result-summary ${run.status === 'failed' ? 'error' : ''}">
+                        ${run.status === 'completed'
+                            ? `${run.measure_count} measures, ${run.part_count} parts`
+                            : run.status === 'failed'
+                                ? escapeHtml(run.error || 'Unknown error')
+                                : '-'}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            }
+        }
+
+        function updateModelFilter(breakdown) {
+            const select = document.getElementById('filter-model');
+            const currentValue = select.value;
+
+            // Save current selection
+            const options = Array.from(select.options).map(opt => opt.value);
+
+            // Clear and rebuild
+            select.innerHTML = '<option value="">All</option>';
+
+            if (breakdown) {
+                for (const model of Object.keys(breakdown)) {
+                    const [provider] = model.split(':');
+                    if (!options.includes(provider)) {
+                        const option = document.createElement('option');
+                        option.value = provider;
+                        option.textContent = provider;
+                        select.appendChild(option);
+                    }
+                }
+            }
+
+            // Restore selection if still valid
+            if (options.includes(currentValue)) {
+                select.value = currentValue;
+            }
+        }
+
+        function viewJob(jobId) {
+            window.open(`index.html?job=${jobId}`, '_blank');
+        }
+
+        function formatTimestamp(isoString) {
+            if (!isoString) return '-';
+            const date = new Date(isoString);
+            return date.toLocaleString();
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds) return '-';
+            if (seconds < 60) return `${seconds}s`;
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Event listeners for filters
+        document.getElementById('filter-status').addEventListener('change', loadRuns);
+        document.getElementById('filter-model').addEventListener('change', loadRuns);
+        document.getElementById('filter-source').addEventListener('input', debounce(loadRuns, 500));
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Initial load
+        loadRuns();
+    </script>
+</body>
+</html>

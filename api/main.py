@@ -153,7 +153,7 @@ def _run_pipeline(job_id: str, tmp_path: str) -> None:
     job = _jobs[job_id]
     job["status"] = RUNNING
     try:
-        score = extract_from_image(tmp_path)
+        score, _model_info = extract_from_image(tmp_path)
         musicxml = build_musicxml(score)
         job["musicxml"] = musicxml
         job["measure_count"] = score.measure_count

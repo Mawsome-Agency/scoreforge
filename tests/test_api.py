@@ -145,7 +145,7 @@ def test_convert_and_download_musicxml(client, blank_png):
     """
     mock_score = _simple_score()
 
-    with patch("api.main.extract_from_image", return_value=mock_score):
+    with patch("api.main.extract_from_image", return_value=(mock_score, {"provider": "mock", "model": "mock"})):
         post_resp = client.post(
             "/convert",
             files={"file": ("sheet.png", blank_png, "image/png")},

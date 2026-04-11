@@ -58,6 +58,7 @@ class TestCase:
 
 # Built-in test cases from fixtures
 BUILT_IN_TESTS = [
+    # --- Baseline fixtures (originally hand-specified) ---
     TestCase(
         name="simple_melody",
         musicxml_path=str(FIXTURE_DIR / "simple_melody.musicxml"),
@@ -68,23 +69,123 @@ BUILT_IN_TESTS = [
     TestCase(
         name="piano_chords",
         musicxml_path=str(FIXTURE_DIR / "piano_chords.musicxml"),
-        description="G major, 3/4, 4 measures with chords, piano grand staff",
+        description="G major, 3/4, 4 measures with chords (3-4 stacked notes), piano grand staff",
         difficulty="medium",
         tags=["grand_staff", "chords", "dotted_notes"],
     ),
     TestCase(
         name="complex_rhythm",
         musicxml_path=str(FIXTURE_DIR / "complex_rhythm.musicxml"),
-        description="Bb major, 6/8, 4 measures with dotted notes, ties, eighth notes",
+        description="Bb major, 6/8, 4 measures with dotted-eighth patterns, ties across barlines, accidentals",
         difficulty="hard",
         tags=["compound_meter", "ties", "accidentals", "beams"],
     ),
     TestCase(
         name="nested_tuplets",
         musicxml_path=str(FIXTURE_DIR / "nested_tuplets.musicxml"),
-        description="C major, 3/4, 4 measures, 2-voice counterpoint with triplet tuplets",
+        description="4/4, triplets and quintuplets (5-in-4); duration accuracy expected low (~40-60%) due to tuplet normalization gap",
+        difficulty="expert",
+        tags=["tuplets", "triplets", "quintuplets", "time_modification"],
+    ),
+    # --- Extended fixture suite (promoted from auto-discovery) ---
+    TestCase(
+        name="mixed_meters",
+        musicxml_path=str(FIXTURE_DIR / "mixed_meters.musicxml"),
+        description="Atonal, 4 measures alternating unusual time signatures (7/8, 5/4, etc.); each measure changes",
         difficulty="hard",
-        tags=["tuplets", "multi_voice", "triplets", "time_modification"],
+        tags=["time_sig_changes", "7_8", "5_4", "irregular_grouping"],
+    ),
+    TestCase(
+        name="multi_voice",
+        musicxml_path=str(FIXTURE_DIR / "multi_voice.musicxml"),
+        description="4/4, 4 measures, two-voice counterpoint (C5 melody vs E4 bass) with backup elements and chord blocks",
+        difficulty="hard",
+        tags=["two_voice", "backup_element", "counterpoint", "chord_vs_voice"],
+    ),
+    TestCase(
+        name="ornaments",
+        musicxml_path=str(FIXTURE_DIR / "ornaments.musicxml"),
+        description="C major, 4/4, 4 measures, whole/half notes with trill, turn, mordent, inverted-mordent, tremolo",
+        difficulty="medium",
+        tags=["trill", "turn", "mordent", "tremolo", "notations"],
+    ),
+    TestCase(
+        name="key_changes",
+        musicxml_path=str(FIXTURE_DIR / "key_changes.musicxml"),
+        description="Multi-measure piece with mid-piece key signature changes and cancellation natural accidentals",
+        difficulty="medium",
+        tags=["key_sig_change", "mid_piece_modulation", "naturals"],
+    ),
+    TestCase(
+        name="full_orchestra",
+        musicxml_path=str(FIXTURE_DIR / "full_orchestra.musicxml"),
+        description="Full orchestra score with 4+ parts, including transposing instruments (Bb clarinet, F horn)",
+        difficulty="expert",
+        tags=["multi_part", "transposing_instruments", "score_layout"],
+    ),
+    TestCase(
+        name="repeats_codas",
+        musicxml_path=str(FIXTURE_DIR / "repeats_codas.musicxml"),
+        description="Repeat barlines, 1st/2nd volta brackets, coda and segno navigation symbols",
+        difficulty="medium",
+        tags=["repeat_barlines", "volta_brackets", "coda", "segno"],
+    ),
+    TestCase(
+        name="dynamics_hairpins",
+        musicxml_path=str(FIXTURE_DIR / "dynamics_hairpins.musicxml"),
+        description="Piece with dynamic markings (pp, mp, f, ff) and crescendo/decrescendo hairpins",
+        difficulty="medium",
+        tags=["dynamics", "hairpins", "cresc", "decresc", "pp_ff"],
+    ),
+    TestCase(
+        name="lyrics_verses",
+        musicxml_path=str(FIXTURE_DIR / "lyrics_verses.musicxml"),
+        description="Vocal part with multi-verse lyrics and syllable hyphenation (begin/middle/end)",
+        difficulty="medium",
+        tags=["lyrics", "multi_verse", "syllable_split"],
+    ),
+    TestCase(
+        name="clef_changes",
+        musicxml_path=str(FIXTURE_DIR / "clef_changes.musicxml"),
+        description="Single staff with multiple clef changes (treble→bass→alto/tenor), some mid-measure",
+        difficulty="medium",
+        tags=["mid_measure_clef", "bass_clef", "alto_clef", "tenor_clef"],
+    ),
+    TestCase(
+        name="annotations",
+        musicxml_path=str(FIXTURE_DIR / "annotations.musicxml"),
+        description="Rehearsal letters (A, B, C), tempo markings (Allegro, Adagio), expression text (dolce)",
+        difficulty="medium",
+        tags=["text_expressions", "rehearsal_marks", "tempo_text"],
+    ),
+    TestCase(
+        name="marching_stickings",
+        musicxml_path=str(FIXTURE_DIR / "marching_stickings.musicxml"),
+        description="Percussion notation with R/L hand stickings on single-line percussion staff (unpitched)",
+        difficulty="medium",
+        tags=["percussion", "single_line_staff", "stickings", "unpitched"],
+    ),
+    TestCase(
+        name="solo_with_accompaniment",
+        musicxml_path=str(FIXTURE_DIR / "solo_with_accompaniment.musicxml"),
+        description="Two-part score: treble-clef melody line plus piano grand-staff accompaniment",
+        difficulty="medium",
+        tags=["multi_part", "melody_accompaniment", "grand_staff"],
+    ),
+    TestCase(
+        name="title_metadata",
+        musicxml_path=str(FIXTURE_DIR / "title_metadata.musicxml"),
+        description="Score with rich metadata: work title, movement title, composer, copyright",
+        difficulty="easy",
+        tags=["metadata", "title", "composer", "work_title"],
+    ),
+    # --- Edge case fixture ---
+    TestCase(
+        name="empty_score",
+        musicxml_path=str(FIXTURE_DIR / "empty_score.musicxml"),
+        description="Edge case: valid MusicXML with no pitched notes (whole rest only) — tests zero-note pipeline handling",
+        difficulty="easy",
+        tags=["edge_case", "empty", "zero_notes", "error_handling"],
     ),
 ]
 
@@ -105,6 +206,7 @@ class TestResult:
     compare_ok: bool = False
     visual_score: Optional[int] = None
     error: Optional[str] = None
+    skipped: bool = False
     duration_seconds: float = 0.0
     gt_note_count: int = 0
     matched_note_count: int = 0
@@ -234,8 +336,9 @@ def run_test(
     if skip_api:
         console.print(f"  [yellow]Skipping API extraction (--no-api)[/yellow]")
         result.render_ok = True
+        result.skipped = True  # mark as skipped, not an error
+        result.error = None
         result.duration_seconds = time.time() - start_time
-        result.error = "Skipped (--no-api)"
         return result
 
     # --- Step 2: Extract from image ---
@@ -373,7 +476,14 @@ def print_report(results: list[TestResult]):
     table.add_column("Time", justify="right")
 
     for r in results:
-        status = "[green]PASS[/green]" if r.passed else ("[red]ERROR[/red]" if r.error and not r.compare_ok else "[yellow]FAIL[/yellow]")
+        if r.passed:
+            status = "[green]PASS[/green]"
+        elif r.skipped:
+            status = "[dim yellow]SKIP[/dim yellow]"
+        elif r.error and not r.compare_ok:
+            status = "[red]ERROR[/red]"
+        else:
+            status = "[yellow]FAIL[/yellow]"
         notes = f"{r.matched_note_count}/{r.gt_note_count}" if r.gt_note_count else "-"
         pitch = f"{r.scores.get('pitch_accuracy', 0):.0f}%" if r.scores else "-"
         rhythm = f"{r.scores.get('rhythm_accuracy', 0):.0f}%" if r.scores else "-"
@@ -388,10 +498,11 @@ def print_report(results: list[TestResult]):
     # Aggregate stats
     total = len(results)
     passed = sum(1 for r in results if r.passed)
-    failed = sum(1 for r in results if not r.passed and r.compare_ok)
-    errors = sum(1 for r in results if r.error and not r.compare_ok)
+    skipped = sum(1 for r in results if r.skipped)
+    failed = sum(1 for r in results if not r.passed and not r.skipped and r.compare_ok)
+    errors = sum(1 for r in results if r.error and not r.compare_ok and not r.skipped)
 
-    console.print(f"\n  Total: {total}  Passed: {passed}  Failed: {failed}  Errors: {errors}")
+    console.print(f"\n  Total: {total}  Passed: {passed}  Failed: {failed}  Errors: {errors}  Skipped: {skipped}")
 
     if results and any(r.scores for r in results):
         scored = [r for r in results if r.scores]
@@ -420,6 +531,7 @@ def print_report(results: list[TestResult]):
                 "matched_notes": r.matched_note_count,
                 "duration_seconds": r.duration_seconds,
                 "error": r.error,
+                "skipped": r.skipped,
             }
             for r in results
         ],

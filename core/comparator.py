@@ -104,7 +104,7 @@ def ai_compare(original_path: str, rendered_path: str) -> dict:
     rend_data, rend_type = encode(rendered_path)
 
     message = api.create_message(
-        model="claude-sonnet-4-5-20250929",
+        model="claude-sonnet-4-5",
         max_tokens=4000,
         messages=[
             {
@@ -640,6 +640,11 @@ def _compare_note_lists(
                 "voice": voice_num,
                 "description": f"Missing note at position {ni}{voice_label}: expected {_note_str(gt_notes[ni])}",
             })
+            # Still track gt_pitch_count for missed pitched notes so pitch_accuracy
+            # correctly reports 0% recall when extracted score has 0 notes (Gap #6 fix).
+            _gt_n = gt_notes[ni]
+            if not _gt_n["is_rest"] and _gt_n.get("pitch"):
+                gt_pitch_count += 1
             continue
 
         gt_n = gt_notes[ni]

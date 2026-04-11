@@ -138,7 +138,7 @@ def discover_corpus_pdfs() -> list[Path]:
 
 def run_corpus_pdf(
     pdf_path: Path,
-    model: str = "glm-5.1",
+    model: str = "auto",
 ) -> CorpusResult:
     """Test extraction on a real-world corpus PDF (no GT — parse success only).
 
@@ -149,7 +149,7 @@ def run_corpus_pdf(
     result = CorpusResult(name=pdf_path.stem, passed=False)
 
     try:
-        score = extract_from_image(str(pdf_path), model=model)
+        score, model_info = extract_from_image(str(pdf_path), model=model)
         result.extract_ok = True
         result.note_count = sum(len(m.notes) for p in score.parts for m in p.measures)
         result.measure_count = sum(len(p.measures) for p in score.parts)
@@ -196,7 +196,7 @@ def discover_fixtures() -> list[TestCase]:
 
 def run_test(
     test: TestCase,
-    model: str = "glm-5.1",
+    model: str = "auto",
     skip_api: bool = False,
     work_dir: Optional[Path] = None,
 ) -> TestResult:
@@ -241,7 +241,7 @@ def run_test(
     # --- Step 2: Extract from image ---
     console.print(f"  [dim]Extracting with Claude Vision...[/dim]")
     try:
-        score = extract_from_image(gt_png, model=model)
+        score, model_info = extract_from_image(gt_png, model=model)
         result.extract_ok = True
     except Exception as e:
         result.error = f"Extraction failed: {e}"
@@ -292,7 +292,7 @@ def run_test(
 
 def run_all_tests(
     tests: list[TestCase],
-    model: str = "glm-5.1",
+    model: str = "auto",
     skip_api: bool = False,
 ) -> list[TestResult]:
     """Run all test cases and return results."""
@@ -436,7 +436,7 @@ def print_report(results: list[TestResult]):
 
 @click.command()
 @click.option("--fixture", "-f", default=None, help="Run only this fixture (by name)")
-@click.option("--model", "-m", default="glm-5.1", help="Claude model")
+@click.option("--model", "-m", default="auto", help="Model to use: 'auto' for round-robin rotation, or a specific model name")
 @click.option("--no-api", is_flag=True, help="Skip API calls (test rendering/infra only)")
 @click.option("--list-fixtures", is_flag=True, help="List available fixtures and exit")
 @click.option("--corpus", is_flag=True, help="Also run corpus PDF parse tests")
@@ -530,7 +530,7 @@ if __name__ == "__main__":
 # Integration with validate_baseline.py
 # ---------------------------------------------------------------------------
 
-def get_baseline_metrics(model: str = "glm-5.1", skip_api: bool = False) -> dict:
+def get_baseline_metrics(model: str = "auto", skip_api: bool = False) -> dict:
     """Get baseline metrics for all fixtures.
 
     This function is designed to be imported by validate_baseline.py
@@ -594,7 +594,7 @@ def get_baseline_metrics(model: str = "glm-5.1", skip_api: bool = False) -> dict
     }
 
 
-def run_baseline_validation(output_path: Optional[Path] = None, model: str = "glm-5.1") -> dict:
+def run_baseline_validation(output_path: Optional[Path] = None, model: str = "auto") -> dict:
     """Run baseline validation and return results.
 
     This is a convenience function that can be called from validate_baseline.py

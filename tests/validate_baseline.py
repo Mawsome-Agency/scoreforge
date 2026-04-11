@@ -117,7 +117,7 @@ def discover_fixtures() -> list[FixtureInfo]:
     return fixtures
 
 
-def run_fixture(fixture: FixtureInfo, model: str = "glm-5.1") -> FixtureResult:
+def run_fixture(fixture: FixtureInfo, model: str = "auto") -> FixtureResult:
     """Run a single fixture through the pipeline."""
     start_time = time.time()
     result = FixtureResult(fixture=fixture, passed=False)
@@ -136,7 +136,7 @@ def run_fixture(fixture: FixtureInfo, model: str = "glm-5.1") -> FixtureResult:
         return result
 
     try:
-        score = extract_from_image(gt_png, model=model)
+        score, model_info = extract_from_image(gt_png, model=model)
         result.extract_ok = True
     except Exception as e:
         result.error = f"Extraction failed: {e}"
@@ -177,7 +177,7 @@ def run_fixture(fixture: FixtureInfo, model: str = "glm-5.1") -> FixtureResult:
     return result
 
 
-def run_all_fixtures(fixtures: list[FixtureInfo], model: str = "glm-5.1", verbose: bool = True) -> list[FixtureResult]:
+def run_all_fixtures(fixtures: list[FixtureInfo], model: str = "auto", verbose: bool = True) -> list[FixtureResult]:
     """Run all fixtures."""
     results = []
     for i, fixture in enumerate(fixtures, 1):
@@ -227,7 +227,7 @@ def calculate_summary(results: list[FixtureResult]) -> BaselineSummary:
     )
 
 
-def generate_markdown_report(results: list[FixtureResult], summary: BaselineSummary, model: str = "glm-5.1") -> str:
+def generate_markdown_report(results: list[FixtureResult], summary: BaselineSummary, model: str = "auto") -> str:
     """Generate markdown report."""
     sorted_results = sorted(results, key=lambda r: r.fixture.name)
     lines = [
@@ -342,7 +342,7 @@ def print_console_report(results: list[FixtureResult], summary: BaselineSummary)
 
 @click.command()
 @click.option("--fixture", "-f", default=None, help="Run only this fixture")
-@click.option("--model", "-m", default="glm-5.1", help="Claude model")
+@click.option("--model", "-m", default="auto", help="Model to use: 'auto' for round-robin rotation, or a specific model name")
 @click.option("--output", "-o", default=None, help="Output path for markdown report")
 @click.option("--quiet", "-q", is_flag=True, help="Quiet mode")
 @click.option("--list-fixtures", is_flag=True, help="List fixtures")

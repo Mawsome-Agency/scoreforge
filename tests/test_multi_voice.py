@@ -766,7 +766,110 @@ class TestEdgeCases:
 
 
 # ============================================================================
-# 12. Ambiguous Stem Scenarios — tests for voice assignment when stems absent
+# 12. Score-level is_perfect requires correct key and time signatures
+# ============================================================================
+
+class TestIsPerfectCondition:
+    """Test that score-level is_perfect requires correct key AND time signatures."""
+
+    def _make_xml(self, key_fifths=0, key_mode="major", time_beats=4, time_beat_type=4,
+                  include_key=True, include_time=True):
+        """Build a minimal MusicXML string with optional key/time signatures."""
+        key_block = f"""
+        <key>
+          <fifths>{key_fifths}</fifths>
+          <mode>{key_mode}</mode>
+        </key>""" if include_key else ""
+        time_block = f"""
+        <time>
+          <beats>{time_beats}</beats>
+          <beat-type>{time_beat_type}</beat-type>
+        </time>""" if include_time else ""
+        return f"""<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1">
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>{key_block}{time_block}
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note>
+    </measure>
+  </part>
+</score-partwise>"""
+
+    def test_is_perfect_with_correct_key_and_time(self, tmp_path):
+        """Both key and time correct -> is_perfect=True."""
+        xml = self._make_xml(key_fifths=0, time_beats=4)
+        gt_path = tmp_path / "gt.musicxml"
+        ex_path = tmp_path / "ex.musicxml"
+        gt_path.write_text(xml)
+        ex_path.write_text(xml)
+        result = compare_musicxml_semantic(str(gt_path), str(ex_path))
+        assert result["is_perfect"] is True
+
+    def test_is_perfect_with_wrong_key(self, tmp_path):
+        """Wrong key signature -> is_perfect=False."""
+        gt_xml = self._make_xml(key_fifths=0)
+        ex_xml = self._make_xml(key_fifths=2)
+        gt_path = tmp_path / "gt.musicxml"
+        ex_path = tmp_path / "ex.musicxml"
+        gt_path.write_text(gt_xml)
+        ex_path.write_text(ex_xml)
+        result = compare_musicxml_semantic(str(gt_path), str(ex_path))
+        assert result["is_perfect"] is False
+        assert result["scores"]["note_accuracy"] == 100.0
+
+    def test_is_perfect_with_wrong_time(self, tmp_path):
+        """Wrong time signature -> is_perfect=False."""
+        gt_xml = self._make_xml(time_beats=4)
+        ex_xml = self._make_xml(time_beats=3)
+        gt_path = tmp_path / "gt.musicxml"
+        ex_path = tmp_path / "ex.musicxml"
+        gt_path.write_text(gt_xml)
+        ex_path.write_text(ex_xml)
+        result = compare_musicxml_semantic(str(gt_path), str(ex_path))
+        assert result["is_perfect"] is False
+        assert result["scores"]["note_accuracy"] == 100.0
+
+    def test_is_perfect_with_both_wrong(self, tmp_path):
+        """Both key and time wrong -> is_perfect=False."""
+        gt_xml = self._make_xml(key_fifths=0, time_beats=4)
+        ex_xml = self._make_xml(key_fifths=3, time_beats=3)
+        gt_path = tmp_path / "gt.musicxml"
+        ex_path = tmp_path / "ex.musicxml"
+        gt_path.write_text(gt_xml)
+        ex_path.write_text(ex_xml)
+        result = compare_musicxml_semantic(str(gt_path), str(ex_path))
+        assert result["is_perfect"] is False
+
+    def test_is_perfect_with_no_key_time(self, tmp_path):
+        """No key or time in either score -> is_perfect=True when notes match (guard clause)."""
+        xml = self._make_xml(include_key=False, include_time=False)
+        gt_path = tmp_path / "gt.musicxml"
+        ex_path = tmp_path / "ex.musicxml"
+        gt_path.write_text(xml)
+        ex_path.write_text(xml)
+        result = compare_musicxml_semantic(str(gt_path), str(ex_path))
+        assert result["is_perfect"] is True
+
+    def test_is_perfect_with_key_but_no_time(self, tmp_path):
+        """Key correct, no time signature in either -> is_perfect=True when notes match."""
+        xml = self._make_xml(key_fifths=0, include_time=False)
+        gt_path = tmp_path / "gt.musicxml"
+        ex_path = tmp_path / "ex.musicxml"
+        gt_path.write_text(xml)
+        ex_path.write_text(xml)
+        result = compare_musicxml_semantic(str(gt_path), str(ex_path))
+        assert result["is_perfect"] is True
+
+
+# ============================================================================
+# 13. Ambiguous Stem Scenarios — tests for voice assignment when stems absent
 # ============================================================================
 
 class TestAmbiguousStemScenarios:
@@ -865,7 +968,7 @@ class TestAmbiguousStemScenarios:
 
 
 # ============================================================================
-# 13. Voice Assignment Fallbacks — tests for fallback logic
+# 14. Voice Assignment Fallbacks — tests for fallback logic
 # ============================================================================
 
 class TestVoiceAssignmentFallbacks:

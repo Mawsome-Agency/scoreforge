@@ -3,6 +3,7 @@
 import json
 import sys
 import time
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -52,6 +53,7 @@ class FixtureResult:
     extract_ok: bool = False
     build_ok: bool = False
     compare_ok: bool = False
+    failure_modes: list = field(default_factory=list)
 
     @property
     def note_accuracy(self) -> float:
@@ -81,6 +83,10 @@ class FixtureResult:
     def time_sig_accuracy(self) -> float:
         return self.scores.get("time_sig_accuracy", 0.0)
 
+    @property
+    def voice_accuracy(self) -> float:
+        return self.scores.get("voice_accuracy", 0.0)
+
 
 @dataclass
 class BaselineSummary:
@@ -96,6 +102,7 @@ class BaselineSummary:
     avg_measure_accuracy: float = 0.0
     avg_key_sig_accuracy: float = 0.0
     avg_time_sig_accuracy: float = 0.0
+    avg_voice_accuracy: float = 0.0
     target_95_percent_met: bool = False
     timestamp: str = ""
 
@@ -151,6 +158,14 @@ def run_fixture(fixture: FixtureInfo, model: str = "auto") -> FixtureResult:
         result.matched_note_count = sem_result["total_notes_matched"]
         result.compare_ok = True
         result.passed = sem_result["is_perfect"]
+
+        all_diff_types = [
+            d["type"]
+            for pd in sem_result.get("part_diffs", [])
+            for md in pd.get("measure_diffs", [])
+            for d in md.get("diffs", [])
+        ]
+        result.failure_modes = [t for t, _ in Counter(all_diff_types).most_common(3)]
         with open(str(work_dir / "comparison.json"), "w") as f:
             json.dump(sem_result, f, indent=2, default=str)
     except Exception as e:
@@ -195,16 +210,17 @@ def calculate_summary(results: list[FixtureResult]) -> BaselineSummary:
         avg_measure = sum(r.measure_accuracy for r in scored) / len(scored)
         avg_key = sum(r.key_sig_accuracy for r in scored) / len(scored)
         avg_time = sum(r.time_sig_accuracy for r in scored) / len(scored)
+        avg_voice = sum(r.voice_accuracy for r in scored) / len(scored)
     else:
         avg_note = avg_pitch = avg_rhythm = avg_overall = 0.0
-        avg_measure = avg_key = avg_time = 0.0
+        avg_measure = avg_key = avg_time = avg_voice = 0.0
 
     return BaselineSummary(
         total_fixtures=total, passed=passed, failed=failed, errors=errors,
         avg_note_accuracy=avg_note, avg_pitch_accuracy=avg_pitch,
         avg_rhythm_accuracy=avg_rhythm, avg_overall_accuracy=avg_overall,
         avg_measure_accuracy=avg_measure, avg_key_sig_accuracy=avg_key,
-        avg_time_sig_accuracy=avg_time,
+        avg_time_sig_accuracy=avg_time, avg_voice_accuracy=avg_voice,
         target_95_percent_met=avg_overall >= 95.0,
         timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
@@ -234,21 +250,27 @@ def generate_markdown_report(results: list[FixtureResult], summary: BaselineSumm
         f"| Measure Accuracy | **{summary.avg_measure_accuracy:.1f}%** | ≥95% |",
         f"| Key Signature Accuracy | **{summary.avg_key_sig_accuracy:.1f}%** | ≥95% |",
         f"| Time Signature Accuracy | **{summary.avg_time_sig_accuracy:.1f}%** | ≥95% |",
+        f"| Voice Accuracy | **{summary.avg_voice_accuracy:.1f}%** | - |",
         f"| **Overall Accuracy** | **{summary.avg_overall_accuracy:.1f}%** | **≥95%** |",
         "",
         f"**Status:** {'✅ PASS' if summary.target_95_percent_met else '❌ FAIL'} - 95% target {'met' if summary.target_95_percent_met else 'not met'}",
         "",
         "## Per-Fixture Results",
         "",
-        "| Fixture | Status | Note Acc | Pitch Acc | Rhythm Acc | Overall Acc | Notes | Time |",
-        "|---------|--------|----------|-----------|-------------|-------------|-------|------|",
+        "| Fixture | Status | Note Acc | Pitch Acc | Rhythm Acc | Voice Acc | Overall Acc | Notes | Time | Top Failures |",
+        "|---------|--------|----------|-----------|------------|-----------|-------------|-------|------|--------------|",
     ]
 
     for r in sorted_results:
         status = "✅ PASS" if r.passed else ("❌ ERROR" if r.error and not r.compare_ok else "⚠️ FAIL")
         notes = f"{r.matched_note_count}/{r.gt_note_count}" if r.gt_note_count else "-"
         time_str = f"{r.duration_seconds:.1f}s"
-        lines.append(f"| {r.fixture.name} | {status} | {r.note_accuracy:.1f}% | {r.pitch_accuracy:.1f}% | {r.rhythm_accuracy:.1f}% | {r.overall_accuracy:.1f}% | {notes} | {time_str} |")
+        failures_str = ", ".join(r.failure_modes) if r.failure_modes else "-"
+        lines.append(
+            f"| {r.fixture.name} | {status} | {r.note_accuracy:.1f}% | {r.pitch_accuracy:.1f}% "
+            f"| {r.rhythm_accuracy:.1f}% | {r.voice_accuracy:.1f}% | {r.overall_accuracy:.1f}% "
+            f"| {notes} | {time_str} | {failures_str} |"
+        )
 
     lines.extend([
         "",
@@ -286,6 +308,7 @@ def print_console_report(results: list[FixtureResult], summary: BaselineSummary)
     table.add_column("Notes", justify="right")
     table.add_column("Pitch %", justify="right")
     table.add_column("Rhythm %", justify="right")
+    table.add_column("Voice %", justify="right")
     table.add_column("Overall %", justify="right")
     table.add_column("Time", justify="right")
 
@@ -293,13 +316,21 @@ def print_console_report(results: list[FixtureResult], summary: BaselineSummary)
         status = "[green]PASS[/green]" if r.passed else ("[red]ERROR[/red]" if r.error and not r.compare_ok else "[yellow]FAIL[/yellow]")
         notes = f"{r.matched_note_count}/{r.gt_note_count}" if r.gt_note_count else "-"
         time_str = f"{r.duration_seconds:.1f}s"
-        table.add_row(r.fixture.name, status, notes, f"{r.pitch_accuracy:.0f}%", f"{r.rhythm_accuracy:.0f}%", f"{r.overall_accuracy:.0f}%", time_str)
+        table.add_row(
+            r.fixture.name, status, notes,
+            f"{r.pitch_accuracy:.0f}%",
+            f"{r.rhythm_accuracy:.0f}%",
+            f"{r.voice_accuracy:.0f}%",
+            f"{r.overall_accuracy:.0f}%",
+            time_str
+        )
 
     console.print(table)
     console.print(f"\n  Total: {summary.total_fixtures}  Passed: {summary.passed}  Failed: {summary.failed}  Errors: {summary.errors}")
     console.print(f"  Overall accuracy: {summary.avg_overall_accuracy:.1f}% (target: ≥95%)")
     console.print(f"  Pitch accuracy: {summary.avg_pitch_accuracy:.1f}%")
     console.print(f"  Rhythm accuracy: {summary.avg_rhythm_accuracy:.1f}%")
+    console.print(f"  Voice accuracy: {summary.avg_voice_accuracy:.1f}%")
     console.print(f"  Measure accuracy: {summary.avg_measure_accuracy:.1f}%")
     gate_status = "[green]✓ PASS[/green]" if summary.target_95_percent_met else "[red]✗ FAIL[/red]"
     console.print(f"\n  95% Target Gate: {gate_status}")
@@ -364,6 +395,7 @@ def main(fixture, model, output, quiet, list_fixtures):
             "avg_measure_accuracy": summary.avg_measure_accuracy,
             "avg_key_sig_accuracy": summary.avg_key_sig_accuracy,
             "avg_time_sig_accuracy": summary.avg_time_sig_accuracy,
+            "avg_voice_accuracy": summary.avg_voice_accuracy,
             "target_95_percent_met": summary.target_95_percent_met,
         },
         "results": [
@@ -375,6 +407,7 @@ def main(fixture, model, output, quiet, list_fixtures):
                 "matched_notes": r.matched_note_count,
                 "duration_seconds": r.duration_seconds,
                 "error": r.error,
+                "failure_modes": r.failure_modes,
             }
             for r in results
         ],

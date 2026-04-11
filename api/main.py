@@ -85,10 +85,15 @@ def providers():
 async def convert(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    upload_source: Optional[str] = None,
 ):
     """Upload a sheet music image or PDF and start OMR conversion.
 
     Returns a job_id immediately (202 Accepted). Poll GET /job/{id} for status.
+
+    Query parameters:
+        upload_source: Optional identifier for who uploaded (e.g., "matt", "test-agent")
+                      Agents will have (agent) suffix auto-appended if not present.
     """
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
@@ -104,6 +109,15 @@ async def convert(
         raise HTTPException(status_code=413, detail="File too large. Maximum 10 MB.")
 
     job_id = str(uuid.uuid4())
+
+    # Process upload_source - default to anonymous, append (agent) suffix for agents
+    if upload_source:
+        # Auto-append (agent) suffix if not present
+        if "agent" in upload_source.lower() and not upload_source.endswith("(agent)"):
+            upload_source = f"{upload_source} (agent)"
+    else:
+        upload_source = "anonymous"
+
     _jobs.set(job_id, {
         "id": job_id,
         "status": PENDING,
@@ -114,6 +128,7 @@ async def convert(
         "error": None,
         "model_provider": None,
         "model_name": None,
+        "upload_source": upload_source,
     })
 
     # Persist upload to a temp file — pipeline expects a filesystem path
@@ -156,6 +171,51 @@ def get_job_result(job_id: str):
     )
 
 
+@app.get("/runs")
+def get_runs(
+    status: Optional[str] = None,
+    model_provider: Optional[str] = None,
+    upload_source: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: int = 0,
+):
+    """List all runs with summary statistics and optional filtering.
+
+    Query parameters:
+        status: Filter by job status (pending, running, completed, failed)
+        model_provider: Filter by model provider (e.g., "anthropic", "ollama:qwen3-vl:235b-instruct")
+        upload_source: Filter by upload source (partial match, case-insensitive)
+        limit: Maximum number of results to return
+        offset: Number of results to skip (for pagination)
+
+    Returns:
+        {
+            "stats": {summary statistics},
+            "runs": [list of job objects without musicxml body]
+        }
+    """
+    # Get filtered list of runs
+    runs = _jobs.list_filtered(
+        status=status,
+        model_provider=model_provider,
+        upload_source=upload_source,
+        limit=limit,
+        offset=offset,
+    )
+
+    # Remove musicxml from each run (too large for list view)
+    for run in runs:
+        run.pop("musicxml", None)
+
+    # Get summary stats
+    stats = _jobs.get_stats()
+
+    return {
+        "stats": stats,
+        "runs": runs,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Background pipeline — runs in Starlette's background task thread
 # ---------------------------------------------------------------------------
@@ -173,16 +233,31 @@ def _run_pipeline(job_id: str, tmp_path: str) -> None:
     try:
         score, model_info = extract_from_image(tmp_path)
         musicxml = build_musicxml(score)
+
+        # Calculate duration and set completion timestamp
+        completed_at = datetime.now(timezone.utc).isoformat()
+        created_at = datetime.fromisoformat(job["created_at"])
+        duration_seconds = int((datetime.fromisoformat(completed_at) - created_at).total_seconds())
+
         job["musicxml"] = musicxml
         job["measure_count"] = score.measure_count
         job["part_count"] = score.part_count
         job["model_provider"] = model_info.get("provider")
         job["model_name"] = model_info.get("model")
         job["status"] = COMPLETED
+        job["completed_at"] = completed_at
+        job["duration_seconds"] = duration_seconds
         _jobs.set(job_id, job)
     except Exception as exc:
+        # Calculate duration even for failed jobs
+        completed_at = datetime.now(timezone.utc).isoformat()
+        created_at = datetime.fromisoformat(job["created_at"])
+        duration_seconds = int((datetime.fromisoformat(completed_at) - created_at).total_seconds())
+
         job["status"] = FAILED
         job["error"] = str(exc)
+        job["completed_at"] = completed_at
+        job["duration_seconds"] = duration_seconds
         _jobs.set(job_id, job)
     finally:
         Path(tmp_path).unlink(missing_ok=True)

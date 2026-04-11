@@ -117,8 +117,16 @@ def discover_fixtures() -> list[FixtureInfo]:
     return fixtures
 
 
-def run_fixture(fixture: FixtureInfo, model: str = "auto") -> FixtureResult:
-    """Run a single fixture through the pipeline."""
+def run_fixture(fixture: FixtureInfo, model: str = "auto", skip_api: bool = False) -> FixtureResult:
+    """Run a single fixture through the pipeline.
+
+    Args:
+        fixture: Fixture to run.
+        model: Model to use for extraction.
+        skip_api: If True, skip AI extraction and use ground truth as extracted output.
+                  This enables a full pipeline dry-run (render → self-compare) without
+                  making any API calls. Self-comparison should yield ~100% accuracy.
+    """
     start_time = time.time()
     result = FixtureResult(fixture=fixture, passed=False)
     work_dir = RESULTS_DIR / fixture.name
@@ -135,21 +143,29 @@ def run_fixture(fixture: FixtureInfo, model: str = "auto") -> FixtureResult:
         result.error = f"Render failed: {e}"
         return result
 
-    try:
-        score, model_info = extract_from_image(gt_png, model=model)
+    if skip_api:
+        # Self-comparison: use ground truth XML directly as the extracted output.
+        # This validates the render → compare pipeline for all fixtures without API calls.
+        import shutil
+        shutil.copy2(gt_path, extracted_xml)
         result.extract_ok = True
-    except Exception as e:
-        result.error = f"Extraction failed: {e}"
-        return result
-
-    try:
-        musicxml_content = build_musicxml(score)
-        with open(extracted_xml, "w") as f:
-            f.write(musicxml_content)
         result.build_ok = True
-    except Exception as e:
-        result.error = f"Build failed: {e}"
-        return result
+    else:
+        try:
+            score, model_info = extract_from_image(gt_png, model=model)
+            result.extract_ok = True
+        except Exception as e:
+            result.error = f"Extraction failed: {e}"
+            return result
+
+        try:
+            musicxml_content = build_musicxml(score)
+            with open(extracted_xml, "w") as f:
+                f.write(musicxml_content)
+            result.build_ok = True
+        except Exception as e:
+            result.error = f"Build failed: {e}"
+            return result
 
     try:
         sem_result = compare_musicxml_semantic(gt_path, extracted_xml)
@@ -177,13 +193,26 @@ def run_fixture(fixture: FixtureInfo, model: str = "auto") -> FixtureResult:
     return result
 
 
-def run_all_fixtures(fixtures: list[FixtureInfo], model: str = "auto", verbose: bool = True) -> list[FixtureResult]:
-    """Run all fixtures."""
+def run_all_fixtures(
+    fixtures: list[FixtureInfo],
+    model: str = "auto",
+    verbose: bool = True,
+    skip_api: bool = False,
+) -> list[FixtureResult]:
+    """Run all fixtures.
+
+    Args:
+        fixtures: List of fixtures to run.
+        model: Model to use for extraction.
+        verbose: Print progress to console.
+        skip_api: If True, skip AI extraction and use ground truth as extracted output.
+    """
     results = []
     for i, fixture in enumerate(fixtures, 1):
         if verbose:
-            console.print(f"\n[bold cyan]Fixture {i}/{len(fixtures)}:[/bold cyan] {fixture.name}")
-        result = run_fixture(fixture, model=model)
+            mode_label = " [dim](skip-api)[/dim]" if skip_api else ""
+            console.print(f"\n[bold cyan]Fixture {i}/{len(fixtures)}:[/bold cyan] {fixture.name}{mode_label}")
+        result = run_fixture(fixture, model=model, skip_api=skip_api)
         results.append(result)
         if verbose:
             if result.passed:
@@ -346,8 +375,16 @@ def print_console_report(results: list[FixtureResult], summary: BaselineSummary)
 @click.option("--output", "-o", default=None, help="Output path for markdown report")
 @click.option("--quiet", "-q", is_flag=True, help="Quiet mode")
 @click.option("--list-fixtures", is_flag=True, help="List fixtures")
-def main(fixture, model, output, quiet, list_fixtures):
-    """Run baseline validation."""
+@click.option("--skip-api", "skip_api", is_flag=True, default=False,
+              help="Skip AI extraction; use ground truth as extracted output (self-comparison dry-run).")
+def main(fixture, model, output, quiet, list_fixtures, skip_api):
+    """Run baseline validation.
+
+    Use --skip-api to run the full pipeline without making AI API calls.
+    In skip-api mode, each fixture's ground truth XML is used directly as the
+    extracted output. Self-comparison yields ~100%% accuracy and confirms the
+    render → compare → report pipeline works for all fixtures.
+    """
     fixtures = discover_fixtures()
 
     if list_fixtures:
@@ -368,15 +405,16 @@ def main(fixture, model, output, quiet, list_fixtures):
 
     output_path = Path(output) if output else DEFAULT_REPORT_PATH
 
+    mode_note = " [yellow](skip-api: self-comparison mode)[/yellow]" if skip_api else ""
     console.print(Panel(
         f"[bold]ScoreForge Baseline Validation[/bold]\n"
         f"Fixtures: {len(fixtures)}\n"
-        f"Model: {model}\n"
+        f"Model: {model}{mode_note}\n"
         f"Output: {output_path}",
         title="Configuration",
     ))
 
-    results = run_all_fixtures(fixtures, model=model, verbose=not quiet)
+    results = run_all_fixtures(fixtures, model=model, verbose=not quiet, skip_api=skip_api)
     summary = calculate_summary(results)
     print_console_report(results, summary)
 

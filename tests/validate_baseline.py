@@ -3,6 +3,7 @@
 import json
 import sys
 import time
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -52,6 +53,7 @@ class FixtureResult:
     extract_ok: bool = False
     build_ok: bool = False
     compare_ok: bool = False
+    failure_modes: list = field(default_factory=list)
 
     @property
     def note_accuracy(self) -> float:
@@ -81,6 +83,10 @@ class FixtureResult:
     def time_sig_accuracy(self) -> float:
         return self.scores.get("time_sig_accuracy", 0.0)
 
+    @property
+    def voice_accuracy(self) -> float:
+        return self.scores.get("voice_accuracy", 0.0)
+
 
 @dataclass
 class BaselineSummary:
@@ -96,6 +102,7 @@ class BaselineSummary:
     avg_measure_accuracy: float = 0.0
     avg_key_sig_accuracy: float = 0.0
     avg_time_sig_accuracy: float = 0.0
+    avg_voice_accuracy: float = 0.0
     target_95_percent_met: bool = False
     timestamp: str = ""
 
@@ -110,7 +117,7 @@ def discover_fixtures() -> list[FixtureInfo]:
     return fixtures
 
 
-def run_fixture(fixture: FixtureInfo, model: str = "claude-sonnet-4-6") -> FixtureResult:
+def run_fixture(fixture: FixtureInfo, model: str = "glm-5.1") -> FixtureResult:
     """Run a single fixture through the pipeline."""
     start_time = time.time()
     result = FixtureResult(fixture=fixture, passed=False)
@@ -151,6 +158,15 @@ def run_fixture(fixture: FixtureInfo, model: str = "claude-sonnet-4-6") -> Fixtu
         result.matched_note_count = sem_result["total_notes_matched"]
         result.compare_ok = True
         result.passed = sem_result["is_perfect"]
+
+        # Extract top 3 failure modes from all diffs
+        all_diffs = []
+        for part_diff in sem_result.get("part_diffs", []):
+            for m_diff in part_diff.get("measure_diffs", []):
+                all_diffs.extend(m_diff.get("diffs", []))
+        mode_counts = Counter(d["type"] for d in all_diffs if isinstance(d, dict) and "type" in d)
+        result.failure_modes = [mode for mode, _ in mode_counts.most_common(3)]
+
         with open(str(work_dir / "comparison.json"), "w") as f:
             json.dump(sem_result, f, indent=2, default=str)
     except Exception as e:
@@ -161,7 +177,7 @@ def run_fixture(fixture: FixtureInfo, model: str = "claude-sonnet-4-6") -> Fixtu
     return result
 
 
-def run_all_fixtures(fixtures: list[FixtureInfo], model: str = "claude-sonnet-4-6", verbose: bool = True) -> list[FixtureResult]:
+def run_all_fixtures(fixtures: list[FixtureInfo], model: str = "glm-5.1", verbose: bool = True) -> list[FixtureResult]:
     """Run all fixtures."""
     results = []
     for i, fixture in enumerate(fixtures, 1):
@@ -195,22 +211,23 @@ def calculate_summary(results: list[FixtureResult]) -> BaselineSummary:
         avg_measure = sum(r.measure_accuracy for r in scored) / len(scored)
         avg_key = sum(r.key_sig_accuracy for r in scored) / len(scored)
         avg_time = sum(r.time_sig_accuracy for r in scored) / len(scored)
+        avg_voice = sum(r.voice_accuracy for r in scored) / len(scored)
     else:
         avg_note = avg_pitch = avg_rhythm = avg_overall = 0.0
-        avg_measure = avg_key = avg_time = 0.0
+        avg_measure = avg_key = avg_time = avg_voice = 0.0
 
     return BaselineSummary(
         total_fixtures=total, passed=passed, failed=failed, errors=errors,
         avg_note_accuracy=avg_note, avg_pitch_accuracy=avg_pitch,
         avg_rhythm_accuracy=avg_rhythm, avg_overall_accuracy=avg_overall,
         avg_measure_accuracy=avg_measure, avg_key_sig_accuracy=avg_key,
-        avg_time_sig_accuracy=avg_time,
+        avg_time_sig_accuracy=avg_time, avg_voice_accuracy=avg_voice,
         target_95_percent_met=avg_overall >= 95.0,
         timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
 
 
-def generate_markdown_report(results: list[FixtureResult], summary: BaselineSummary, model: str = "claude-sonnet-4-6") -> str:
+def generate_markdown_report(results: list[FixtureResult], summary: BaselineSummary, model: str = "glm-5.1") -> str:
     """Generate markdown report."""
     sorted_results = sorted(results, key=lambda r: r.fixture.name)
     lines = [
@@ -234,21 +251,37 @@ def generate_markdown_report(results: list[FixtureResult], summary: BaselineSumm
         f"| Measure Accuracy | **{summary.avg_measure_accuracy:.1f}%** | ≥95% |",
         f"| Key Signature Accuracy | **{summary.avg_key_sig_accuracy:.1f}%** | ≥95% |",
         f"| Time Signature Accuracy | **{summary.avg_time_sig_accuracy:.1f}%** | ≥95% |",
+        f"| Voice Accuracy | **{summary.avg_voice_accuracy:.1f}%** | ≥95% |",
         f"| **Overall Accuracy** | **{summary.avg_overall_accuracy:.1f}%** | **≥95%** |",
         "",
         f"**Status:** {'✅ PASS' if summary.target_95_percent_met else '❌ FAIL'} - 95% target {'met' if summary.target_95_percent_met else 'not met'}",
         "",
         "## Per-Fixture Results",
         "",
-        "| Fixture | Status | Note Acc | Pitch Acc | Rhythm Acc | Overall Acc | Notes | Time |",
-        "|---------|--------|----------|-----------|-------------|-------------|-------|------|",
+        "| Fixture | Status | Note Acc | Pitch Acc | Rhythm Acc | Voice Acc | Overall Acc | Notes | Time |",
+        "|---------|--------|----------|-----------|------------|-----------|-------------|-------|------|",
     ]
 
     for r in sorted_results:
         status = "✅ PASS" if r.passed else ("❌ ERROR" if r.error and not r.compare_ok else "⚠️ FAIL")
         notes = f"{r.matched_note_count}/{r.gt_note_count}" if r.gt_note_count else "-"
         time_str = f"{r.duration_seconds:.1f}s"
-        lines.append(f"| {r.fixture.name} | {status} | {r.note_accuracy:.1f}% | {r.pitch_accuracy:.1f}% | {r.rhythm_accuracy:.1f}% | {r.overall_accuracy:.1f}% | {notes} | {time_str} |")
+        lines.append(f"| {r.fixture.name} | {status} | {r.note_accuracy:.1f}% | {r.pitch_accuracy:.1f}% | {r.rhythm_accuracy:.1f}% | {r.voice_accuracy:.1f}% | {r.overall_accuracy:.1f}% | {notes} | {time_str} |")
+
+    # Top Failure Modes section
+    lines.extend(["", "## Top Failure Modes", ""])
+    all_mode_counts: dict[str, int] = {}
+    for r in sorted_results:
+        for mode in r.failure_modes:
+            all_mode_counts[mode] = all_mode_counts.get(mode, 0) + 1
+    if all_mode_counts:
+        sorted_modes = sorted(all_mode_counts.items(), key=lambda x: -x[1])
+        lines.append("| Failure Mode | Fixtures Affected |")
+        lines.append("|--------------|-------------------|")
+        for mode, count in sorted_modes:
+            lines.append(f"| {mode} | {count} |")
+    else:
+        lines.append("_No failure modes recorded._")
 
     lines.extend([
         "",
@@ -286,6 +319,7 @@ def print_console_report(results: list[FixtureResult], summary: BaselineSummary)
     table.add_column("Notes", justify="right")
     table.add_column("Pitch %", justify="right")
     table.add_column("Rhythm %", justify="right")
+    table.add_column("Voice %", justify="right")
     table.add_column("Overall %", justify="right")
     table.add_column("Time", justify="right")
 
@@ -293,13 +327,14 @@ def print_console_report(results: list[FixtureResult], summary: BaselineSummary)
         status = "[green]PASS[/green]" if r.passed else ("[red]ERROR[/red]" if r.error and not r.compare_ok else "[yellow]FAIL[/yellow]")
         notes = f"{r.matched_note_count}/{r.gt_note_count}" if r.gt_note_count else "-"
         time_str = f"{r.duration_seconds:.1f}s"
-        table.add_row(r.fixture.name, status, notes, f"{r.pitch_accuracy:.0f}%", f"{r.rhythm_accuracy:.0f}%", f"{r.overall_accuracy:.0f}%", time_str)
+        table.add_row(r.fixture.name, status, notes, f"{r.pitch_accuracy:.0f}%", f"{r.rhythm_accuracy:.0f}%", f"{r.voice_accuracy:.0f}%", f"{r.overall_accuracy:.0f}%", time_str)
 
     console.print(table)
     console.print(f"\n  Total: {summary.total_fixtures}  Passed: {summary.passed}  Failed: {summary.failed}  Errors: {summary.errors}")
     console.print(f"  Overall accuracy: {summary.avg_overall_accuracy:.1f}% (target: ≥95%)")
     console.print(f"  Pitch accuracy: {summary.avg_pitch_accuracy:.1f}%")
     console.print(f"  Rhythm accuracy: {summary.avg_rhythm_accuracy:.1f}%")
+    console.print(f"  Voice accuracy: {summary.avg_voice_accuracy:.1f}%")
     console.print(f"  Measure accuracy: {summary.avg_measure_accuracy:.1f}%")
     gate_status = "[green]✓ PASS[/green]" if summary.target_95_percent_met else "[red]✗ FAIL[/red]"
     console.print(f"\n  95% Target Gate: {gate_status}")
@@ -307,7 +342,7 @@ def print_console_report(results: list[FixtureResult], summary: BaselineSummary)
 
 @click.command()
 @click.option("--fixture", "-f", default=None, help="Run only this fixture")
-@click.option("--model", "-m", default="claude-sonnet-4-6", help="Claude model")
+@click.option("--model", "-m", default="glm-5.1", help="Claude model")
 @click.option("--output", "-o", default=None, help="Output path for markdown report")
 @click.option("--quiet", "-q", is_flag=True, help="Quiet mode")
 @click.option("--list-fixtures", is_flag=True, help="List fixtures")
@@ -364,6 +399,7 @@ def main(fixture, model, output, quiet, list_fixtures):
             "avg_measure_accuracy": summary.avg_measure_accuracy,
             "avg_key_sig_accuracy": summary.avg_key_sig_accuracy,
             "avg_time_sig_accuracy": summary.avg_time_sig_accuracy,
+            "avg_voice_accuracy": summary.avg_voice_accuracy,
             "target_95_percent_met": summary.target_95_percent_met,
         },
         "results": [
@@ -375,6 +411,7 @@ def main(fixture, model, output, quiet, list_fixtures):
                 "matched_notes": r.matched_note_count,
                 "duration_seconds": r.duration_seconds,
                 "error": r.error,
+                "failure_modes": r.failure_modes,
             }
             for r in results
         ],
@@ -382,6 +419,69 @@ def main(fixture, model, output, quiet, list_fixtures):
     with open(json_path, "w") as f:
         json.dump(json_data, f, indent=2)
     console.print(f"  JSON report saved to: {json_path}")
+
+    # Write results/test_report.json (matching test_harness.py print_report() format)
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    test_report_path = RESULTS_DIR / "test_report.json"
+    test_report_data = {
+        "timestamp": summary.timestamp,
+        "total": summary.total_fixtures,
+        "passed": summary.passed,
+        "failed": summary.failed,
+        "errors": summary.errors,
+        "results": [
+            {
+                "name": r.fixture.name,
+                "passed": r.passed,
+                "scores": r.scores,
+                "visual_score": None,
+                "gt_notes": r.gt_note_count,
+                "matched_notes": r.matched_note_count,
+                "duration_seconds": r.duration_seconds,
+                "error": r.error,
+            }
+            for r in results
+        ],
+    }
+    with open(test_report_path, "w") as f:
+        json.dump(test_report_data, f, indent=2)
+    console.print(f"  Test report saved to: {test_report_path}")
+
+    # Write results/iteration_summary.json (matching iterate.py format)
+    iteration_summary_path = RESULTS_DIR / "iteration_summary.json"
+    iteration_summary_data = {
+        "timestamp": summary.timestamp,
+        "model": model,
+        "total_fixtures": summary.total_fixtures,
+        "passed": summary.passed,
+        "failed": summary.failed,
+        "errors": summary.errors,
+        "avg_note_accuracy": round(summary.avg_note_accuracy, 1),
+        "avg_pitch_accuracy": round(summary.avg_pitch_accuracy, 1),
+        "avg_rhythm_accuracy": round(summary.avg_rhythm_accuracy, 1),
+        "avg_overall_accuracy": round(summary.avg_overall_accuracy, 1),
+        "avg_measure_accuracy": round(summary.avg_measure_accuracy, 1),
+        "avg_key_sig_accuracy": round(summary.avg_key_sig_accuracy, 1),
+        "avg_time_sig_accuracy": round(summary.avg_time_sig_accuracy, 1),
+        "avg_voice_accuracy": round(summary.avg_voice_accuracy, 1),
+        "target_95_percent_met": summary.target_95_percent_met,
+        "fixture_results": [
+            {
+                "name": r.fixture.name,
+                "passed": r.passed,
+                "overall_accuracy": r.overall_accuracy,
+                "pitch_accuracy": r.pitch_accuracy,
+                "rhythm_accuracy": r.rhythm_accuracy,
+                "voice_accuracy": r.voice_accuracy,
+                "failure_modes": r.failure_modes,
+                "error": r.error,
+            }
+            for r in results
+        ],
+    }
+    with open(iteration_summary_path, "w") as f:
+        json.dump(iteration_summary_data, f, indent=2)
+    console.print(f"  Iteration summary saved to: {iteration_summary_path}")
 
     sys.exit(0 if summary.target_95_percent_met else 1)
 

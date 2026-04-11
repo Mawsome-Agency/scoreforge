@@ -138,7 +138,7 @@ def discover_corpus_pdfs() -> list[Path]:
 
 def run_corpus_pdf(
     pdf_path: Path,
-    model: str = "claude-sonnet-4-6",
+    model: str = "glm-5.1",
 ) -> CorpusResult:
     """Test extraction on a real-world corpus PDF (no GT — parse success only).
 
@@ -196,7 +196,7 @@ def discover_fixtures() -> list[TestCase]:
 
 def run_test(
     test: TestCase,
-    model: str = "claude-sonnet-4-6",
+    model: str = "glm-5.1",
     skip_api: bool = False,
     work_dir: Optional[Path] = None,
 ) -> TestResult:
@@ -292,7 +292,7 @@ def run_test(
 
 def run_all_tests(
     tests: list[TestCase],
-    model: str = "claude-sonnet-4-6",
+    model: str = "glm-5.1",
     skip_api: bool = False,
 ) -> list[TestResult]:
     """Run all test cases and return results."""
@@ -436,7 +436,7 @@ def print_report(results: list[TestResult]):
 
 @click.command()
 @click.option("--fixture", "-f", default=None, help="Run only this fixture (by name)")
-@click.option("--model", "-m", default="claude-sonnet-4-6", help="Claude model")
+@click.option("--model", "-m", default="glm-5.1", help="Claude model")
 @click.option("--no-api", is_flag=True, help="Skip API calls (test rendering/infra only)")
 @click.option("--list-fixtures", is_flag=True, help="List available fixtures and exit")
 @click.option("--corpus", is_flag=True, help="Also run corpus PDF parse tests")
@@ -530,7 +530,7 @@ if __name__ == "__main__":
 # Integration with validate_baseline.py
 # ---------------------------------------------------------------------------
 
-def get_baseline_metrics(model: str = "claude-sonnet-4-6", skip_api: bool = False) -> dict:
+def get_baseline_metrics(model: str = "glm-5.1", skip_api: bool = False) -> dict:
     """Get baseline metrics for all fixtures.
 
     This function is designed to be imported by validate_baseline.py
@@ -594,7 +594,7 @@ def get_baseline_metrics(model: str = "claude-sonnet-4-6", skip_api: bool = Fals
     }
 
 
-def run_baseline_validation(output_path: Optional[Path] = None, model: str = "claude-sonnet-4-6") -> dict:
+def run_baseline_validation(output_path: Optional[Path] = None, model: str = "glm-5.1") -> dict:
     """Run baseline validation and return results.
 
     This is a convenience function that can be called from validate_baseline.py

@@ -763,3 +763,186 @@ class TestEdgeCases:
         }
         result = _compare_measures(gt, ex, 1)
         assert result["time_correct"] is False
+
+
+# ============================================================================
+# 12. Score-level is_perfect requires correct key and time signatures
+# ============================================================================
+
+class TestIsPerfectKeyTime:
+    """Test that score-level is_perfect requires correct key and time signatures."""
+
+    def _create_simple_musicxml(self, key_fifths=0, key_mode="major", time_beats=4, time_beat_type=4):
+        """Create a simple MusicXML string with specified key and time signatures."""
+        return f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="3.1">
+  <part-list>
+    <score-part id="P1">
+      <part-name>Piano</part-name>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <key>
+          <fifths>{key_fifths}</fifths>
+          <mode>{key_mode}</mode>
+        </key>
+        <time>
+          <beats>{time_beats}</beats>
+          <beat-type>{time_beat_type}</beat-type>
+        </time>
+        <clef>
+          <sign>G</sign>
+          <line>2</line>
+        </clef>
+      </attributes>
+      <note>
+        <pitch>
+          <step>C</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+      </note>
+      <note>
+        <pitch>
+          <step>D</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+      </note>
+      <note>
+        <pitch>
+          <step>E</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+      </note>
+      <note>
+        <pitch>
+          <step>F</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+      </note>
+    </measure>
+  </part>
+</score-partwise>"""
+
+    def test_is_perfect_with_key_mismatch(self):
+        """Score with key signature mismatch should not be perfect."""
+        import tempfile
+        from pathlib import Path
+
+        # Ground truth: C major (0 fifths)
+        gt_xml = self._create_simple_musicxml(key_fifths=0, key_mode="major")
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.musicxml', delete=False) as f:
+            f.write(gt_xml)
+            gt_path = f.name
+
+        # Extraction: D major (2 fifths)
+        ex_xml = self._create_simple_musicxml(key_fifths=2, key_mode="major")
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.musicxml', delete=False) as f:
+            f.write(ex_xml)
+            ex_path = f.name
+
+        try:
+            result = compare_musicxml_semantic(gt_path, ex_path)
+            # Notes are identical, but key signature is wrong
+            assert result["is_perfect"] is False
+            assert result["scores"]["key_sig_accuracy"] < 100.0
+            assert result["scores"]["note_accuracy"] == 100.0  # Notes are correct
+        finally:
+            Path(gt_path).unlink(missing_ok=True)
+            Path(ex_path).unlink(missing_ok=True)
+
+    def test_is_perfect_with_time_mismatch(self):
+        """Score with time signature mismatch should not be perfect."""
+        import tempfile
+        from pathlib import Path
+
+        # Ground truth: 4/4
+        gt_xml = self._create_simple_musicxml(time_beats=4, time_beat_type=4)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.musicxml', delete=False) as f:
+            f.write(gt_xml)
+            gt_path = f.name
+
+        # Extraction: 3/4
+        ex_xml = self._create_simple_musicxml(time_beats=3, time_beat_type=4)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.musicxml', delete=False) as f:
+            f.write(ex_xml)
+            ex_path = f.name
+
+        try:
+            result = compare_musicxml_semantic(gt_path, ex_path)
+            # Notes are identical, but time signature is wrong
+            assert result["is_perfect"] is False
+            assert result["scores"]["time_sig_accuracy"] < 100.0
+            assert result["scores"]["note_accuracy"] == 100.0  # Notes are correct
+        finally:
+            Path(gt_path).unlink(missing_ok=True)
+            Path(ex_path).unlink(missing_ok=True)
+
+    def test_is_perfect_with_both_key_and_time_mismatch(self):
+        """Score with both key and time signature mismatches should not be perfect."""
+        import tempfile
+        from pathlib import Path
+
+        # Ground truth: C major, 4/4
+        gt_xml = self._create_simple_musicxml(key_fifths=0, key_mode="major", time_beats=4, time_beat_type=4)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.musicxml', delete=False) as f:
+            f.write(gt_xml)
+            gt_path = f.name
+
+        # Extraction: D major, 3/4
+        ex_xml = self._create_simple_musicxml(key_fifths=2, key_mode="major", time_beats=3, time_beat_type=4)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.musicxml', delete=False) as f:
+            f.write(ex_xml)
+            ex_path = f.name
+
+        try:
+            result = compare_musicxml_semantic(gt_path, ex_path)
+            # Notes are identical, but both key and time signatures are wrong
+            assert result["is_perfect"] is False
+            assert result["scores"]["key_sig_accuracy"] < 100.0
+            assert result["scores"]["time_sig_accuracy"] < 100.0
+            assert result["scores"]["note_accuracy"] == 100.0  # Notes are correct
+        finally:
+            Path(gt_path).unlink(missing_ok=True)
+            Path(ex_path).unlink(missing_ok=True)
+
+    def test_is_perfect_with_correct_key_and_time(self):
+        """Score with correct key and time signatures should be perfect when notes are also correct."""
+        import tempfile
+        from pathlib import Path
+
+        # Both files are identical: C major, 4/4
+        xml = self._create_simple_musicxml(key_fifths=0, key_mode="major", time_beats=4, time_beat_type=4)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.musicxml', delete=False) as f:
+            f.write(xml)
+            gt_path = f.name
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.musicxml', delete=False) as f:
+            f.write(xml)
+            ex_path = f.name
+
+        try:
+            result = compare_musicxml_semantic(gt_path, ex_path)
+            # Everything is correct
+            assert result["is_perfect"] is True
+            assert result["scores"]["key_sig_accuracy"] == 100.0
+            assert result["scores"]["time_sig_accuracy"] == 100.0
+            assert result["scores"]["note_accuracy"] == 100.0
+        finally:
+            Path(gt_path).unlink(missing_ok=True)
+            Path(ex_path).unlink(missing_ok=True)

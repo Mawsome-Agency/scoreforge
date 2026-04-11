@@ -326,6 +326,8 @@ def compare_musicxml_semantic(
         and total_pitches_correct == total_pitches
         and total_durations_correct == total_notes
         and result["part_count_match"]
+        and total_key_correct == total_key_checks
+        and total_time_correct == total_time_checks
     )
 
     return result

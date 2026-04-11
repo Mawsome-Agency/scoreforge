@@ -206,6 +206,8 @@ def compare_musicxml_semantic(
     total_key_checks = 0
     total_time_correct = 0
     total_time_checks = 0
+    total_voice_correct = 0
+    total_voice_checked = 0
 
     min_parts = min(gt_data["part_count"], ex_data["part_count"])
     for pi in range(min_parts):
@@ -284,6 +286,22 @@ def compare_musicxml_semantic(
                     "diffs": [{"type": "extra_measure", "description": f"Extra measure {mi + 1} in extraction"}],
                 })
 
+        # Voice accuracy: positional comparison of non-chord, non-grace notes across the full part
+        gt_flat = [
+            n for m in gt_part["measures"]
+            for n in m["notes"]
+            if not n.get("is_chord") and not n.get("is_grace")
+        ]
+        ex_flat = [
+            n for m in ex_part["measures"]
+            for n in m["notes"]
+            if not n.get("is_chord") and not n.get("is_grace")
+        ]
+        for gt_n, ex_n in zip(gt_flat, ex_flat):
+            total_voice_checked += 1
+            if gt_n.get("voice", 1) == ex_n.get("voice", 1):
+                total_voice_correct += 1
+
         result["part_diffs"].append(part_diff)
 
     # Aggregate scores (0-100)
@@ -294,6 +312,7 @@ def compare_musicxml_semantic(
         "measure_accuracy": _pct(total_measures_correct, total_measures),
         "key_sig_accuracy": _pct(total_key_correct, total_key_checks),
         "time_sig_accuracy": _pct(total_time_correct, total_time_checks),
+        "voice_accuracy": _pct(total_voice_correct, total_voice_checked),
         "overall": _pct(
             total_pitches_correct + total_durations_correct + total_key_correct + total_time_correct,
             total_pitches + total_notes + total_key_checks + total_time_checks,

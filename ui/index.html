@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScoreForge — Upload & Test</title>
+    <script src="https://www.verovio.org/javascript/develop/verovio-toolkit-wasm.js" defer></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        .header {
+            background: #1a1a2e;
+            border-bottom: 2px solid #e94560;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #e94560;
+        }
+        .header h1 span { color: #a0a0a0; font-weight: 400; font-size: 14px; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+        /* Upload zone */
+        .upload-zone {
+            border: 2px dashed #333;
+            border-radius: 12px;
+            padding: 48px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #1a1a1a;
+            margin-bottom: 24px;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #e94560;
+            background: #1a1a2e;
+        }
+        .upload-zone .icon { font-size: 48px; margin-bottom: 12px; }
+        .upload-zone p { color: #888; font-size: 14px; margin-top: 8px; }
+        .upload-zone .supported { color: #555; font-size: 12px; margin-top: 4px; }
+
+        /* File list */
+        .file-item {
+            background: #1a1a1a;
+            border: 1px solid #222;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .file-item .thumb {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            border-radius: 4px;
+            background: #111;
+        }
+        .file-item .info { flex: 1; }
+        .file-item .name { font-weight: 600; font-size: 14px; }
+        .file-item .meta { color: #666; font-size: 12px; margin-top: 2px; }
+        .file-item .status {
+            font-size: 13px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        .status-pending { background: #2a2a00; color: #ffd700; }
+        .status-running { background: #002a2a; color: #00d4ff; }
+        .status-completed { background: #002a00; color: #00ff88; }
+        .status-failed { background: #2a0000; color: #ff4444; }
+
+        .actions { display: flex; gap: 8px; }
+        .btn {
+            background: #16213e;
+            border: 1px solid #e94560;
+            color: #e94560;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .btn:hover { background: #e94560; color: #fff; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+        /* Results panel */
+        .result-panel {
+            background: #1a1a1a;
+            border: 1px solid #222;
+            border-radius: 8px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+        .result-tabs {
+            display: flex;
+            border-bottom: 1px solid #333;
+        }
+        .result-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #888;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .result-tab.active {
+            color: #e94560;
+            border-bottom-color: #e94560;
+        }
+        .result-content {
+            padding: 16px;
+            display: none;
+        }
+        .result-content.active { display: block; }
+
+        /* Side by side */
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .comparison-pane {
+            background: #111;
+            border-radius: 6px;
+            padding: 12px;
+            min-height: 300px;
+        }
+        .comparison-pane h3 {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .comparison-pane img {
+            max-width: 100%;
+            border-radius: 4px;
+        }
+        .comparison-pane svg {
+            max-width: 100%;
+        }
+
+        /* XML viewer */
+        .xml-viewer {
+            background: #111;
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            max-height: 500px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: #8bc;
+        }
+
+        /* Progress bar */
+        .progress-bar {
+            height: 3px;
+            background: #222;
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            background: #e94560;
+            animation: pulse 1.5s ease-in-out infinite;
+            width: 100%;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #444;
+        }
+        .empty-state .icon { font-size: 64px; margin-bottom: 12px; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1a1a2e;
+            border: 1px solid #e94560;
+            color: #e0e0e0;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 100;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+
+        /* Model badge */
+        .model-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        .model-badge.anthropic { background: #2a1a00; color: #ffaa33; border: 1px solid #664400; }
+        .model-badge.ollama { background: #001a2a; color: #33aaff; border: 1px solid #004466; }
+        .model-badge .dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            display: inline-block;
+        }
+        .model-badge.anthropic .dot { background: #ffaa33; }
+        .model-badge.ollama .dot { background: #33aaff; }
+
+        /* Provider roster in header */
+        .roster-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #888;
+            margin-left: 4px;
+        }
+        .roster-item.active { border-color: #00ff88; color: #00ff88; }
+        .roster-item.limited { border-color: #ff4444; color: #ff4444; }
+
+        @media (max-width: 768px) {
+            .comparison { grid-template-columns: 1fr; }
+            .container { padding: 12px; }
+            .upload-zone { padding: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ScoreForge <span>Upload & Test</span></h1>
+        <div style="display:flex;gap:12px;align-items:center">
+            <span id="provider-roster" style="font-size:11px;color:#555"></span>
+            <span id="api-status" style="font-size:12px;color:#555">Checking API...</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="upload-zone" id="dropzone">
+            <div class="icon">&#127925;</div>
+            <div style="font-size:16px;font-weight:600">Drop sheet music here</div>
+            <p>or click to browse</p>
+            <div class="supported">PNG, JPEG, or PDF &bull; Max 10MB</div>
+            <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.pdf" multiple style="display:none">
+        </div>
+
+        <div id="jobs-list"></div>
+
+        <div id="empty-state" class="empty-state">
+            <div class="icon">&#128196;</div>
+            <div>Upload some sheet music to get started</div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    const API_BASE = '/scoreforge/api';
+    const jobs = new Map(); // id -> {job, file, objectUrl, expanded, activeTab}
+    let vk = null; // verovio toolkit
+
+    // Init Verovio
+    document.addEventListener('DOMContentLoaded', async () => {
+        checkHealth();
+        try {
+            const VerovioModule = await verovio.module;
+            vk = new verovio.toolkit();
+            console.log('Verovio loaded');
+        } catch(e) {
+            console.warn('Verovio not available:', e);
+        }
+    });
+
+    async function checkHealth() {
+        try {
+            const r = await fetch(`${API_BASE}/health`);
+            const d = await r.json();
+            document.getElementById('api-status').innerHTML =
+                `<span style="color:#00ff88">&#9679;</span> API v${d.version}`;
+            // Fetch provider roster
+            fetchProviders();
+        } catch(e) {
+            document.getElementById('api-status').innerHTML =
+                `<span style="color:#ff4444">&#9679;</span> API offline`;
+        }
+    }
+
+    async function fetchProviders() {
+        try {
+            const r = await fetch(`${API_BASE}/providers`);
+            const d = await r.json();
+            const roster = document.getElementById('provider-roster');
+            roster.innerHTML = d.providers.map(p => {
+                const cls = p.rateLimited ? 'limited' : 'active';
+                const shortName = p.model.split(':')[0].split('-').slice(0,2).join('-');
+                return `<span class="roster-item ${cls}" title="${p.model} (${p.kind})">${shortName}</span>`;
+            }).join('');
+        } catch(e) { /* silent */ }
+    }
+
+    // Drag & drop
+    const dz = document.getElementById('dropzone');
+    const fi = document.getElementById('fileInput');
+
+    dz.addEventListener('click', () => fi.click());
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+    dz.addEventListener('drop', e => {
+        e.preventDefault();
+        dz.classList.remove('dragover');
+        handleFiles(e.dataTransfer.files);
+    });
+    fi.addEventListener('change', () => { handleFiles(fi.files); fi.value = ''; });
+
+    function handleFiles(files) {
+        for (const f of files) {
+            uploadFile(f);
+        }
+    }
+
+    async function uploadFile(file) {
+        const fd = new FormData();
+        fd.append('file', file);
+
+        try {
+            const r = await fetch(`${API_BASE}/convert`, { method: 'POST', body: fd });
+            if (!r.ok) {
+                const err = await r.json().catch(() => ({ detail: r.statusText }));
+                toast(`Upload failed: ${err.detail || r.statusText}`, true);
+                return;
+            }
+            const d = await r.json();
+            const objUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : null;
+
+            jobs.set(d.job_id, {
+                job: d,
+                file: file,
+                objectUrl: objUrl,
+                expanded: true,
+                activeTab: 'compare',
+                musicxml: null,
+            });
+            render();
+            pollJob(d.job_id);
+            toast(`Uploaded: ${file.name}`);
+        } catch(e) {
+            toast(`Upload error: ${e.message}`, true);
+        }
+    }
+
+    async function pollJob(jobId) {
+        const entry = jobs.get(jobId);
+        if (!entry) return;
+
+        try {
+            const r = await fetch(`${API_BASE}/job/${jobId}`);
+            const d = await r.json();
+            entry.job = d;
+
+            if (d.status === 'completed') {
+                // Fetch MusicXML
+                const xr = await fetch(`${API_BASE}/job/${jobId}/result`);
+                entry.musicxml = await xr.text();
+                render();
+                toast(`Done: ${entry.file.name} (${d.part_count} parts, ${d.measure_count} measures)`);
+                return;
+            }
+            if (d.status === 'failed') {
+                render();
+                toast(`Failed: ${entry.file.name} — ${d.error}`, true);
+                return;
+            }
+
+            render();
+            setTimeout(() => pollJob(jobId), 2000);
+        } catch(e) {
+            setTimeout(() => pollJob(jobId), 3000);
+        }
+    }
+
+    function render() {
+        const list = document.getElementById('jobs-list');
+        const empty = document.getElementById('empty-state');
+        empty.style.display = jobs.size === 0 ? 'block' : 'none';
+
+        let html = '';
+        for (const [id, entry] of [...jobs.entries()].reverse()) {
+            const j = entry.job;
+            const f = entry.file;
+            const sizeKB = (f.size / 1024).toFixed(0);
+
+            html += `<div class="file-item" style="flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:16px;width:100%">
+                    ${entry.objectUrl
+                        ? `<img class="thumb" src="${entry.objectUrl}" alt="${f.name}">`
+                        : `<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:24px">&#128196;</div>`
+                    }
+                    <div class="info">
+                        <div class="name">${f.name}</div>
+                        <div class="meta">${sizeKB} KB &bull; ${f.type || 'unknown'}
+                            ${j.part_count ? ` &bull; ${j.part_count} part(s), ${j.measure_count} measure(s)` : ''}
+                            ${j.model_name ? ` &bull; <span class="model-badge ${j.model_provider === 'anthropic' ? 'anthropic' : 'ollama'}"><span class="dot"></span>${j.model_name}</span>` : ''}</div>
+                        ${j.status === 'running' ? '<div class="progress-bar"><div class="fill"></div></div>' : ''}
+                    </div>
+                    <span class="status status-${j.status}">${j.status}</span>
+                    <div class="actions">
+                        ${j.status === 'completed' ? `
+                            <button class="btn btn-sm" onclick="toggleExpand('${id}')">
+                                ${entry.expanded ? 'Collapse' : 'Expand'}
+                            </button>
+                            <button class="btn btn-sm" onclick="downloadXml('${id}')">Download XML</button>
+                        ` : ''}
+                    </div>
+                </div>
+                ${j.status === 'failed' ? `<div style="color:#ff4444;font-size:12px;padding:8px 0 0 76px;width:100%">${j.error || 'Unknown error'}</div>` : ''}
+                ${j.status === 'completed' && entry.expanded ? renderResult(id, entry) : ''}
+            </div>`;
+        }
+        list.innerHTML = html;
+
+        // Render Verovio for any completed jobs
+        for (const [id, entry] of jobs) {
+            if (entry.musicxml && entry.expanded && vk) {
+                const el = document.getElementById(`verovio-${id}`);
+                if (el && !el.innerHTML) {
+                    try {
+                        vk.setOptions({
+                            scale: 40,
+                            pageWidth: el.clientWidth * 100 / 40,
+                            adjustPageHeight: true,
+                            footer: 'none',
+                            header: 'none',
+                        });
+                        vk.loadData(entry.musicxml);
+                        const pages = vk.getPageCount();
+                        let svg = '';
+                        for (let i = 1; i <= Math.min(pages, 5); i++) {
+                            svg += vk.renderToSVG(i);
+                        }
+                        if (pages > 5) svg += `<p style="color:#666;text-align:center">... ${pages - 5} more pages</p>`;
+                        el.innerHTML = svg;
+                    } catch(e) {
+                        el.innerHTML = `<div style="color:#ff4444;font-size:12px">Verovio render error: ${e.message}</div>`;
+                    }
+                }
+            }
+        }
+    }
+
+    function renderResult(id, entry) {
+        const tabs = ['compare', 'xml'];
+        return `
+        <div class="result-panel" style="width:100%;margin-top:12px">
+            <div class="result-tabs">
+                ${tabs.map(t => `
+                    <div class="result-tab ${entry.activeTab === t ? 'active' : ''}"
+                         onclick="switchTab('${id}','${t}')">${t === 'compare' ? 'Side-by-Side' : 'MusicXML Source'}</div>
+                `).join('')}
+            </div>
+            <div class="result-content ${entry.activeTab === 'compare' ? 'active' : ''}" data-tab="compare">
+                <div class="comparison">
+                    <div class="comparison-pane">
+                        <h3>Original</h3>
+                        ${entry.objectUrl
+                            ? `<img src="${entry.objectUrl}" alt="Original">`
+                            : `<div style="color:#555;padding:20px">PDF preview not available — check the original file</div>`
+                        }
+                    </div>
+                    <div class="comparison-pane">
+                        <h3>ScoreForge Output</h3>
+                        <div id="verovio-${id}"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="result-content ${entry.activeTab === 'xml' ? 'active' : ''}" data-tab="xml">
+                <div class="xml-viewer">${escapeHtml(entry.musicxml || '')}</div>
+            </div>
+        </div>`;
+    }
+
+    function switchTab(id, tab) {
+        const entry = jobs.get(id);
+        if (entry) { entry.activeTab = tab; render(); }
+    }
+
+    function toggleExpand(id) {
+        const entry = jobs.get(id);
+        if (entry) { entry.expanded = !entry.expanded; render(); }
+    }
+
+    function downloadXml(id) {
+        const entry = jobs.get(id);
+        if (!entry || !entry.musicxml) return;
+        const blob = new Blob([entry.musicxml], { type: 'application/xml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = entry.file.name.replace(/\.[^.]+$/, '.musicxml');
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function escapeHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function toast(msg, isError) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.style.borderColor = isError ? '#ff4444' : '#00ff88';
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+    </script>
+</body>
+</html>

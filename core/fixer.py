@@ -24,12 +24,13 @@ RULES:
 Output ONLY the corrected XML, wrapped in ```xml ... ``` tags. No explanations."""
 
 
-def fix_musicxml(musicxml_content: str, differences: list[dict]) -> str:
+def fix_musicxml(musicxml_content: str, differences: list[dict], model: str = "glm-5.1") -> str:
     """Apply AI-driven fixes to MusicXML based on detected differences.
 
     Args:
         musicxml_content: Current MusicXML string
         differences: List of difference dicts from comparator
+        model: Claude model to use for fixing
 
     Returns:
         Corrected MusicXML string
@@ -42,7 +43,7 @@ def fix_musicxml(musicxml_content: str, differences: list[dict]) -> str:
     diff_text = json.dumps(differences, indent=2)
 
     message = api.create_message(
-        model="claude-sonnet-4-5-20250929",
+        model=model,
         max_tokens=16000,
         messages=[
             {

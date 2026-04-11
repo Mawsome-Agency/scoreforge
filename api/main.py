@@ -31,24 +31,29 @@ from fastapi.responses import Response
 
 from core.extractor import extract_from_image
 from core.musicxml_builder import build_musicxml
+from core.api import get_provider_roster
 
 app = FastAPI(
     title="ScoreForge API",
     description="AI-powered sheet music to MusicXML converter",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 # ---------------------------------------------------------------------------
-# Job store — plain dict, Sprint 1 only
-# Replace with Redis + worker queue in Sprint 2.
+# Job store — in-memory (dev) or SQLite (production)
+# Configured via JOB_STORE_TYPE environment variable (default: memory)
 # ---------------------------------------------------------------------------
+from api.job_store import JobStore
 
 PENDING = "pending"
 RUNNING = "running"
 COMPLETED = "completed"
 FAILED = "failed"
 
-_jobs: dict[str, dict] = {}
+# Initialize job store based on environment
+_job_store_type = os.getenv("JOB_STORE_TYPE", "memory")
+_job_store_path = os.getenv("JOB_STORE_PATH", "data/jobs.db")
+_jobs = JobStore(store_type=_job_store_type, db_path=_job_store_path)
 
 MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MB
 ALLOWED_CONTENT_TYPES = {
@@ -67,7 +72,13 @@ ALLOWED_CONTENT_TYPES = {
 @app.get("/health")
 def health():
     """Liveness probe."""
-    return {"status": "ok", "version": "0.1.0"}
+    return {"status": "ok", "version": "0.2.0"}
+
+
+@app.get("/providers")
+def providers():
+    """Return all configured round-robin providers and their status."""
+    return {"providers": get_provider_roster()}
 
 
 @app.post("/convert", status_code=202)
@@ -93,7 +104,7 @@ async def convert(
         raise HTTPException(status_code=413, detail="File too large. Maximum 10 MB.")
 
     job_id = str(uuid.uuid4())
-    _jobs[job_id] = {
+    _jobs.set(job_id, {
         "id": job_id,
         "status": PENDING,
         "filename": file.filename or "upload",
@@ -101,9 +112,11 @@ async def convert(
         "part_count": None,
         "musicxml": None,
         "error": None,
-    }
+        "model_provider": None,
+        "model_name": None,
+    })
 
-    # Persist upload to a temp file — the pipeline expects a filesystem path
+    # Persist upload to a temp file — pipeline expects a filesystem path
     suffix = Path(file.filename or "upload.png").suffix or ".png"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     tmp.write(data)
@@ -115,7 +128,7 @@ async def convert(
 
 @app.get("/job/{job_id}")
 def get_job(job_id: str):
-    """Return job status and metadata (excludes the MusicXML body)."""
+    """Return job status and metadata (excludes MusicXML body)."""
     job = _jobs.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -124,7 +137,7 @@ def get_job(job_id: str):
 
 @app.get("/job/{job_id}/result")
 def get_job_result(job_id: str):
-    """Download the MusicXML output for a completed job."""
+    """Download MusicXML output for a completed job."""
     job = _jobs.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -149,19 +162,28 @@ def get_job_result(job_id: str):
 
 
 def _run_pipeline(job_id: str, tmp_path: str) -> None:
-    """Execute the OMR pipeline for a single-page upload."""
-    job = _jobs[job_id]
+    """Execute OMR pipeline for a single-page upload."""
+    job = _jobs.get(job_id)
+    if not job:
+        return
+
     job["status"] = RUNNING
+    _jobs.set(job_id, job)
+
     try:
-        score = extract_from_image(tmp_path)
+        score, model_info = extract_from_image(tmp_path)
         musicxml = build_musicxml(score)
         job["musicxml"] = musicxml
         job["measure_count"] = score.measure_count
         job["part_count"] = score.part_count
+        job["model_provider"] = model_info.get("provider")
+        job["model_name"] = model_info.get("model")
         job["status"] = COMPLETED
+        _jobs.set(job_id, job)
     except Exception as exc:
         job["status"] = FAILED
         job["error"] = str(exc)
+        _jobs.set(job_id, job)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 

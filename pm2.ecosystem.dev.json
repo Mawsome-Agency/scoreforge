@@ -1,0 +1,28 @@
+{
+  "apps": [
+    {
+      "name": "scoreforge-api-dev",
+      "script": "api/run_dev.py",
+      "interpreter": "python3",
+      "cwd": "/home/deployer/scoreforge",
+      "env": {
+        "JOB_STORE_TYPE": "memory",
+        "PORT": "8000"
+      },
+      "watch": [
+        "api",
+        "core"
+      ],
+      "ignore_watch": [
+        "node_modules",
+        ".git",
+        "results",
+        ".pytest_cache",
+        "__pycache__"
+      ],
+      "max_memory_restart": "500M",
+      "merge_logs": true,
+      "autorestart": true
+    }
+  ]
+}

@@ -88,7 +88,7 @@ Output a JSON object with this exact structure:
               "is_chord": false,
               "voice": 1,
               "staff": 1,
-              "stem": null,
+              "stem": "up",
               "tie_start": false,
               "tie_stop": false,
               "slur_start": false,
@@ -114,6 +114,15 @@ Output a JSON object with this exact structure:
 }}
 
 CRITICAL RULES — READ CAREFULLY:
+
+STEM OBSERVATION (CRITICAL — DO THIS FOR EVERY NOTE):
+- Look at EACH note carefully BEFORE assigning voice
+- Is there a visible stem line? (thin vertical line extending from notehead)
+- Stem UP (extends ABOVE notehead): indicates voice 1
+- Stem DOWN (extends BELOW notehead): indicates voice 2
+- No stem (whole/half notes, rests): use fallback rules below
+- ALWAYS record stem direction when visible: "up" or "down"
+- When no stem is visible, set stem to "none"
 
 1. COMPLETENESS: Extract EVERY note, rest, and marking. Missing even one note is a failure.
 
@@ -286,22 +295,23 @@ def encode_pdf_pages(pdf_path: str) -> list[tuple[str, str]]:
 
 def extract_from_image(
     image_path: str,
-    model: str = "claude-sonnet-4-5-20250929",
+    model: str = "auto",
     use_thinking: bool = True,
     two_pass: bool = True,
-) -> Score:
-    """Extract musical score from an image using Claude Vision.
+) -> tuple["Score", dict]:
+    """Extract musical score from an image using vision AI (round-robin).
 
     Args:
         image_path: Path to sheet music image (PNG, JPG, PDF).
-        model: Claude model to use.
+        model: Model override or "auto" for round-robin selection.
         use_thinking: Whether to use extended thinking for complex analysis.
         two_pass: Whether to do structure-first then detail extraction.
 
     Returns:
-        Parsed Score object.
+        Tuple of (Score, model_info_dict) where model_info contains
+        provider and model name used for the extraction.
     """
-    # Client managed by core.api with fallback
+    # Client managed by core.api with round-robin
     image_data, media_type = encode_image(image_path)
 
     image_block = {
@@ -314,9 +324,13 @@ def extract_from_image(
     }
 
     if two_pass:
-        return _extract_two_pass(image_block, model, use_thinking)
+        score = _extract_two_pass(image_block, model, use_thinking)
     else:
-        return _extract_single_pass(image_block, model, use_thinking)
+        score = _extract_single_pass(image_block, model, use_thinking)
+
+    # Capture which model was used (set by api.stream_and_collect)
+    model_info = api.get_last_model_info()
+    return score, model_info
 
 
 # ---------------------------------------------------------------------------

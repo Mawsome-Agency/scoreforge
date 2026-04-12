@@ -1146,3 +1146,100 @@ class TestIsPerfectKeyTime:
         finally:
             os.unlink(gt_path)
             os.unlink(ex_path)
+
+
+# ============================================================================
+# 15. _infer_duration() helper - duration inference from note type
+# ============================================================================
+
+class TestInferDuration:
+    """Test _infer_duration() helper function."""
+
+    def test_whole_note_divisions_1(self):
+        """Whole note at divisions=1 should be 4."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.WHOLE, dots=0, divisions=1) == 4
+
+    def test_half_note_divisions_1(self):
+        """Half note at divisions=1 should be 2."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.HALF, dots=0, divisions=1) == 2
+
+    def test_quarter_note_divisions_1(self):
+        """Quarter note at divisions=1 should be 1."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.QUARTER, dots=0, divisions=1) == 1
+
+    def test_eighth_note_divisions_2(self):
+        """Eighth note at divisions=2 should be 1."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.EIGHTH, dots=0, divisions=2) == 1
+
+    def test_sixteenth_note_divisions_4(self):
+        """Sixteenth note at divisions=4 should be 1."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.SIXTEENTH, dots=0, divisions=4) == 1
+
+    def test_dotted_half_note_divisions_1(self):
+        """Dotted half note at divisions=1 should be 3 (2 * 1.5)."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.HALF, dots=1, divisions=1) == 3
+
+    def test_dotted_quarter_note_divisions_1(self):
+        """Dotted quarter note at divisions=1 should be 2 (1 * 1.5, rounded)."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.QUARTER, dots=1, divisions=1) == 2
+
+    def test_dotted_whole_note_divisions_1(self):
+        """Dotted whole note at divisions=1 should be 6 (4 * 1.5)."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.WHOLE, dots=1, divisions=1) == 6
+
+    def test_double_dotted_quarter_note_divisions_1(self):
+        """Double-dotted quarter note at divisions=1 should be 2 (1 * 1.75, rounded)."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.QUARTER, dots=2, divisions=1) == 2
+
+    def test_eighth_note_divisions_1_rounds_to_1(self):
+        """Eighth note at divisions=1 should round to 1 (0.5 * 1 = 0.5, max(1, round(0.5)) = 1)."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.EIGHTH, dots=0, divisions=1) == 1
+
+    def test_sixteenth_note_divisions_1_rounds_to_1(self):
+        """Sixteenth note at divisions=1 should round to 1 (0.25 * 1 = 0.25, max(1, round(0.25)) = 1)."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.SIXTEENTH, dots=0, divisions=1) == 1
+
+    def test_dotted_half_note_divisions_2(self):
+        """Dotted half note at divisions=2 should be 6 (2 * 2 * 1.5 = 6)."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.HALF, dots=1, divisions=2) == 6
+
+    def test_thirty_second_note_divisions_8(self):
+        """Thirty-second note at divisions=8 should be 1 (0.125 * 8 = 1)."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.THIRTY_SECOND, dots=0, divisions=8) == 1
+
+    def test_sixty_fourth_note_divisions_16(self):
+        """Sixty-fourth note at divisions=16 should be 1 (0.0625 * 16 = 1)."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.SIXTY_FOURTH, dots=0, divisions=16) == 1
+
+    def test_dotted_eighth_note_divisions_2(self):
+        """Dotted eighth note at divisions=2 should be 2 (0.5 * 2 * 1.5 = 1.5, rounded to 2)."""
+        from core.extractor import _infer_duration
+        assert _infer_duration(NoteType.EIGHTH, dots=1, divisions=2) == 2
+
+    def test_all_note_types_divisions_1(self):
+        """All note types at divisions=1 should produce valid durations."""
+        from core.extractor import _infer_duration
+        for note_type in NoteType:
+            duration = _infer_duration(note_type, dots=0, divisions=1)
+            assert duration >= 1, f"{note_type} produced duration {duration} < 1"
+
+    def test_all_note_types_divisions_4(self):
+        """All note types at divisions=4 should produce valid durations."""
+        from core.extractor import _infer_duration
+        for note_type in NoteType:
+            duration = _infer_duration(note_type, dots=0, divisions=4)
+            assert duration >= 1, f"{note_type} produced duration {duration} < 1"

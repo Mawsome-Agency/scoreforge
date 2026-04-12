@@ -601,14 +601,14 @@ def _build_score(data: dict) -> Score:
             if cl := m_data.get("clef"):
                 measure.clef = Clef(sign=cl["sign"], line=cl["line"])
 
-            # Normalize divisions to 1 regardless of what the LLM outputs.
+            # Normalize divisions to 4 regardless of what the LLM outputs.
             # The LLM may choose arbitrary divisions (e.g. 2 for eighth-note
-            # precision, 10080 for music21 compatibility). Using anything other
-            # than 1 causes normalization mismatches against GT fixtures that
-            # also use non-1 divisions.  By pinning to 1 we let _infer_duration
-            # recompute duration from the note TYPE, which the LLM reads more
-            # reliably than the raw integer duration.
-            measure.divisions = 1
+            # precision, 10080 for music21 compatibility). Using divisions=4
+            # gives _infer_duration enough resolution to distinguish sub-quarter
+            # notes: eighth=2, sixteenth=1. Using divisions=1 caused all
+            # sub-quarter notes to round up to 1, making them indistinguishable
+            # from quarter notes.
+            measure.divisions = 4
 
             # Tempo
             measure.tempo = m_data.get("tempo")
@@ -619,10 +619,11 @@ def _build_score(data: dict) -> Score:
             if bl := m_data.get("barline_right"):
                 measure.barline_right = Barline(style=bl.get("style", "regular"))
 
-            # Notes — always infer duration from note type (divisions=1) so
+            # Notes — always infer duration from note type (divisions=4) so
             # rhythm comparison is based on note TYPE accuracy, not raw ints.
+            # divisions=4 gives eighth=2, sixteenth=1 resolution.
             for n_data in m_data.get("notes", []):
-                note = _build_note(n_data, divisions=1)
+                note = _build_note(n_data, divisions=4)
                 measure.notes.append(note)
 
             part.measures.append(measure)

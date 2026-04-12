@@ -138,21 +138,42 @@ STEM OBSERVATION (CRITICAL — DO THIS FOR EVERY NOTE):
    STEP 1: IDENTIFY THE CLEF FIRST (before reading any notes)
    - Look at the LEFT SIDE of the staff for the clef symbol
    - Is it treble (G clef), bass (F clef), or alto (C clef)?
-   
+
    STEP 2: ESTABLISH THE REFERENCE PITCH AS SPATIAL ANCHOR
    - Treble clef: spiral wraps around line 2 = G4. Lines bottom-to-top: E4 G4 B4 D5 F5. Spaces: F4 A4 C5 E5
    - Bass clef: two dots around line 4 = F3. Lines: G2 B2 D3 F3 A3. Spaces: A2 C3 E3 G3
    - Use this anchor for EVERY note — count from this known position
-   
+
+   TREBLE CLEF — CRITICAL BELOW-STAFF POSITIONS (frequently misread):
+   - E4 = BOTTOM LINE of the staff (line 1)
+   - D4 = SPACE BELOW the bottom line (below the staff, not on a ledger line)
+   - C4 = FIRST LEDGER LINE below the staff (short horizontal line through notehead) — this is MIDDLE C
+   - B3 = space below the first ledger line
+   - A3 = second ledger line below the staff
+   ⚠ COMMON ERROR: Do NOT read C4 or D4 as E4. If the notehead is BELOW the bottom staff line, it CANNOT be E4.
+
+   TREBLE CLEF — CRITICAL ABOVE-STAFF POSITIONS:
+   - F5 = TOP LINE of the staff (line 5)
+   - G5 = space above the top line (above the staff, not on a ledger line)
+   - A5 = first ledger line above the staff
+   ⚠ HIGH-LEDGER-LINE NOTES ARE RARE. If you think you see A5, B5, or higher, verify carefully — these require multiple ledger lines above the staff.
+
+   BASS CLEF — CRITICAL POSITIONS:
+   - G2 = BOTTOM LINE of the bass staff
+   - F3 = MIDDLE LINE (line 4, where the F-clef dot sits)
+   - A3 = TOP LINE of the bass staff (line 5)
+   - C3 = space between lines 2 and 3
+
    STEP 3: FOR EACH NOTE, COUNT LINES/SPACES FROM ANCHOR
-   - Count the notehead vertical position relative to the clef anchor line
+   - FIRST ask: is the notehead ABOVE, ON, or BELOW the 5 staff lines?
+   - If BELOW line 1 (E4 in treble): count down from E4 to assign D4, C4, B3, etc.
+   - If ON the 5 staff lines or spaces: identify which line/space
+   - If ABOVE line 5 (F5 in treble): count up from F5 to assign G5, A5, etc.
    - Each step up/down = one diatonic step (C D E F G A B then repeat)
-   - Above the staff: continue counting upward with ledger lines
-   - Below the staff: continue counting downward with ledger lines
-   
+
    STEP 4: ASSIGN CORRECT OCTAVE
    - Octave changes at C (every C resets the octave number)
-   - Middle C = C4 (one ledger line below treble staff)
+   - Middle C = C4 (one ledger line BELOW treble staff, ABOVE bass staff)
 
 4. KEY/TIME/CLEF RULES:
    - First measure MUST include time_signature, key_signature, and clef.
@@ -225,6 +246,8 @@ STEM OBSERVATION (CRITICAL — DO THIS FOR EVERY NOTE):
     - NEVER infer pitches from melody patterns you might recognize. If you think you see a familiar melody, IGNORE that recognition entirely. Read ONLY the visual vertical position of each notehead on the staff.
     - Output EXACTLY {measure_count} measure objects in each part's "measures" array — one object per measure, in order. This count comes from structure analysis and is AUTHORITATIVE. Do NOT collapse multiple measures into one. Do NOT add extra measures. If a measure appears empty, output it with an appropriate rest filling the full duration.
     - LYRICS: If lyrics are printed below the staff, use them as a cross-check: each syllabic unit = exactly one note. Count syllables per measure to verify your note count.
+    - TEXT IS NOT MUSIC: Title, composer, tempo markings, dynamic letters (p, f, mf), rehearsal marks are NOT noteheads. Letter descenders (g, p, y, j) are NOT stems. Do NOT create chord notes (is_chord=true) unless you see TWO OR MORE oval noteheads vertically stacked at the same rhythmic beat within the staff area itself.
+    - CHORDS ARE RARE: Only mark is_chord=true when multiple filled or open noteheads are clearly stacked vertically at the same beat position. If uncertain whether two shapes are chords or separate beats, treat them as separate non-chord notes.
 
 14. MEASURE COMPLETENESS (PER-MEASURE GATE):
     - After writing each measure's notes array, pause and verify:

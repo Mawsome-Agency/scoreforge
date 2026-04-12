@@ -1,0 +1,618 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-12T01:12:02.151333+00:00",
+  "fixtures": {
+    "annotations": {
+      "note_density": {
+        "notes_per_measure": 1.33,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 1,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": false,
+        "rating": "simple"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": true,
+        "has_grace_notes": false,
+        "feature_count": 1,
+        "rating": "medium"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "moderate",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "clef_changes": {
+      "note_density": {
+        "notes_per_measure": 2.0,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 1,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": false,
+        "rating": "simple"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 0,
+        "rating": "low"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "simple",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "complex_rhythm": {
+      "note_density": {
+        "notes_per_measure": 2.75,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 1,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": true,
+        "rating": "compound"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 0,
+        "rating": "low"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "moderate",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "dynamics_hairpins": {
+      "note_density": {
+        "notes_per_measure": 2.4,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 1,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": false,
+        "rating": "simple"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": true,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 1,
+        "rating": "medium"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "moderate",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "empty_score": {
+      "note_density": {
+        "notes_per_measure": 0.0,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 1,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": false,
+        "rating": "simple"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 0,
+        "rating": "low"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "simple",
+      "is_edge_case": true,
+      "notes": "Empty score \u2014 no pitched notes; classified at minimum complexity."
+    },
+    "full_orchestra": {
+      "note_density": {
+        "notes_per_measure": 4.0,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 15,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": false,
+        "rating": "simple"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 0,
+        "rating": "low"
+      },
+      "staff_count": {
+        "part_count": 15,
+        "has_grand_staff": false,
+        "rating": "multi"
+      },
+      "complexity_tier": "expert",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "key_changes": {
+      "note_density": {
+        "notes_per_measure": 4.0,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 1,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": false,
+        "rating": "simple"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 0,
+        "rating": "low"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "simple",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "lyrics_verses": {
+      "note_density": {
+        "notes_per_measure": 3.0,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 1,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": false,
+        "rating": "simple"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": true,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 1,
+        "rating": "medium"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "moderate",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "marching_stickings": {
+      "note_density": {
+        "notes_per_measure": 4.0,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 1,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": false,
+        "rating": "simple"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 0,
+        "rating": "low"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "simple",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "mixed_meters": {
+      "note_density": {
+        "notes_per_measure": 3.8,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 1,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": true,
+        "has_dotted_rhythms": true,
+        "rating": "compound"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 0,
+        "rating": "low"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "moderate",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "multi_voice": {
+      "note_density": {
+        "notes_per_measure": 4.5,
+        "rating": "medium"
+      },
+      "voice_count": {
+        "max_voices_in_part": 2,
+        "part_count": 1,
+        "rating": "2"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": false,
+        "rating": "simple"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 0,
+        "rating": "low"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "moderate",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "nested_tuplets": {
+      "note_density": {
+        "notes_per_measure": 6.0,
+        "rating": "medium"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 1,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": true,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": true,
+        "rating": "complex"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 0,
+        "rating": "low"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "expert",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "ornaments": {
+      "note_density": {
+        "notes_per_measure": 1.5,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 1,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": false,
+        "rating": "simple"
+      },
+      "notation_complexity": {
+        "has_ornaments": true,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 1,
+        "rating": "medium"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "moderate",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "piano_chords": {
+      "note_density": {
+        "notes_per_measure": 5.0,
+        "rating": "medium"
+      },
+      "voice_count": {
+        "max_voices_in_part": 2,
+        "part_count": 1,
+        "rating": "2"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": true,
+        "rating": "compound"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 0,
+        "rating": "low"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": true,
+        "rating": "grand"
+      },
+      "complexity_tier": "complex",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "repeats_codas": {
+      "note_density": {
+        "notes_per_measure": 1.0,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 1,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": false,
+        "rating": "simple"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": true,
+        "has_grace_notes": false,
+        "feature_count": 1,
+        "rating": "medium"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "moderate",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "simple_melody": {
+      "note_density": {
+        "notes_per_measure": 2.88,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 1,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": false,
+        "rating": "simple"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 0,
+        "rating": "low"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "simple",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "solo_with_accompaniment": {
+      "note_density": {
+        "notes_per_measure": 2.0,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 3,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": false,
+        "rating": "simple"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 0,
+        "rating": "low"
+      },
+      "staff_count": {
+        "part_count": 3,
+        "has_grand_staff": false,
+        "rating": "multi"
+      },
+      "complexity_tier": "moderate",
+      "is_edge_case": false,
+      "notes": ""
+    },
+    "title_metadata": {
+      "note_density": {
+        "notes_per_measure": 4.0,
+        "rating": "low"
+      },
+      "voice_count": {
+        "max_voices_in_part": 1,
+        "part_count": 1,
+        "rating": "1"
+      },
+      "rhythm_complexity": {
+        "has_tuplets": false,
+        "has_mixed_meters": false,
+        "has_dotted_rhythms": false,
+        "rating": "simple"
+      },
+      "notation_complexity": {
+        "has_ornaments": false,
+        "has_dynamics": false,
+        "has_lyrics": false,
+        "has_repeats": false,
+        "has_grace_notes": false,
+        "feature_count": 0,
+        "rating": "low"
+      },
+      "staff_count": {
+        "part_count": 1,
+        "has_grand_staff": false,
+        "rating": "single"
+      },
+      "complexity_tier": "simple",
+      "is_edge_case": false,
+      "notes": ""
+    }
+  }
+}

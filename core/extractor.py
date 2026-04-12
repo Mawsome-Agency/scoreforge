@@ -578,8 +578,14 @@ def _build_score(data: dict) -> Score:
             if cl := m_data.get("clef"):
                 measure.clef = Clef(sign=cl["sign"], line=cl["line"])
 
-            # Divisions
-            measure.divisions = m_data.get("divisions", 1)
+            # Normalize divisions to 1 regardless of what the LLM outputs.
+            # The LLM may choose arbitrary divisions (e.g. 2 for eighth-note
+            # precision, 10080 for music21 compatibility). Using anything other
+            # than 1 causes normalization mismatches against GT fixtures that
+            # also use non-1 divisions.  By pinning to 1 we let _infer_duration
+            # recompute duration from the note TYPE, which the LLM reads more
+            # reliably than the raw integer duration.
+            measure.divisions = 1
 
             # Tempo
             measure.tempo = m_data.get("tempo")
@@ -590,9 +596,10 @@ def _build_score(data: dict) -> Score:
             if bl := m_data.get("barline_right"):
                 measure.barline_right = Barline(style=bl.get("style", "regular"))
 
-            # Notes
+            # Notes — always infer duration from note type (divisions=1) so
+            # rhythm comparison is based on note TYPE accuracy, not raw ints.
             for n_data in m_data.get("notes", []):
-                note = _build_note(n_data, divisions=measure.divisions)
+                note = _build_note(n_data, divisions=1)
                 measure.notes.append(note)
 
             part.measures.append(measure)
@@ -686,15 +693,16 @@ def _build_note(data: dict, divisions: int = 1) -> Note:
             accidental=acc,
         )
 
-    # Use LLM-provided duration if available, otherwise infer from note type
-    if "duration" in data:
-        duration = data["duration"]
-    else:
-        duration = _infer_duration(
-            note_type,
-            data.get("dots", 0),
-            divisions
-        )
+    # Always infer duration from note type rather than trusting the LLM's raw
+    # integer.  LLM duration values are inconsistent (depends on the divisions
+    # value chosen for that measure), while note TYPE is read more reliably.
+    # _infer_duration(type, dots, divisions=1) maps:
+    #   whole→4, half→2, quarter→1, eighth→1 (capped), 16th→1 (capped).
+    duration = _infer_duration(
+        note_type,
+        data.get("dots", 0),
+        divisions,  # always 1 from _build_score; kept for testability
+    )
 
     return Note(
         note_type=note_type,

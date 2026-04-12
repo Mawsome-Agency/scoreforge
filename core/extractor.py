@@ -39,7 +39,13 @@ Use this exact structure:
 }
 
 RULES:
-- Count measures carefully by counting barlines visible in the image. Do NOT guess or extrapolate.
+- Count measures by counting ALL barlines across ALL systems (lines of music) in the image:
+  1. Locate the FIRST system (top row of music). Count the barlines separating measures in that row.
+  2. Move to the SECOND system (next row). Count its barlines.
+  3. Continue for every system (row) on the page.
+  4. Sum the barline-separated measure counts across all systems. That is your measure_count.
+  IMPORTANT: A barline at the END of a system still ends a measure. Do not skip it.
+  EXAMPLE: Two systems each with 2 measures = 4 total measures (not 2).
 - For piano/keyboard: staves=2 (treble + bass).
 - Key signature fifths: negative=flats, positive=sharps (-2 = Bb major, 1 = G major, etc.)
 - TIME SIGNATURE: Read the printed number at the top (beats) and bottom (beat-type) of the time signature symbol. Do NOT assume 4/4 as a default — it may be 3/4, 6/8, 2/4, or anything else.

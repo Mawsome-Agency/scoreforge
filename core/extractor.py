@@ -223,7 +223,7 @@ STEM OBSERVATION (CRITICAL — DO THIS FOR EVERY NOTE):
     - Extract ONLY the notes, pitches, and rhythms you can SEE in the image.
     - Do NOT generate notes from memory or prior musical knowledge about any piece.
     - NEVER infer pitches from melody patterns you might recognize. If you think you see a familiar melody, IGNORE that recognition entirely. Read ONLY the visual vertical position of each notehead on the staff.
-    - The measure count from the structure analysis is a guide, but always prefer what you can count in the image. Generate EXACTLY as many measures as you can see — no more.
+    - Output EXACTLY {measure_count} measure objects in each part's "measures" array — one object per measure, in order. This count comes from structure analysis and is AUTHORITATIVE. Do NOT collapse multiple measures into one. Do NOT add extra measures. If a measure appears empty, output it with an appropriate rest filling the full duration.
     - LYRICS: If lyrics are printed below the staff, use them as a cross-check: each syllabic unit = exactly one note. Count syllables per measure to verify your note count.
 
 14. MEASURE COMPLETENESS (PER-MEASURE GATE):
@@ -241,7 +241,7 @@ STEM OBSERVATION (CRITICAL — DO THIS FOR EVERY NOTE):
     - If you see only one staff (treble or bass), set staves=1.
 
 FINAL SELF-CHECK: After completing extraction, verify:
-- Total measure count matches what you can count in the image
+- Total measure count matches structure_json (EXACTLY {measure_count} measures per part)
 - Each measure's note durations sum to the time signature
 - No notes are missing from any measure
 - Pitches are correct relative to the clef and key signature
@@ -380,8 +380,14 @@ def _extract_two_pass(
         pinned_provider = pass1_info.get("provider") or "auto"
 
     # --- Pass 2: Extract detailed notes ---
+    # Get measure count from structure data for prompt enforcement
+    measure_count = 1
+    if structure_data.get("parts"):
+        measure_count = structure_data["parts"][0].get("measure_count", 1)
+
     detail_prompt = DETAIL_PROMPT.format(
-        structure_json=json.dumps(structure_data, indent=2)
+        structure_json=json.dumps(structure_data, indent=2),
+        measure_count=measure_count
     )
 
     # Build the API call kwargs
@@ -429,7 +435,8 @@ def _extract_single_pass(
     # Use a minimal structure placeholder for the detail prompt
     placeholder = {"note": "Structure not pre-analyzed. Extract everything from the image."}
     detail_prompt = DETAIL_PROMPT.format(
-        structure_json=json.dumps(placeholder, indent=2)
+        structure_json=json.dumps(placeholder, indent=2),
+        measure_count=1  # Default for single-pass
     )
 
     api_kwargs = {
@@ -585,7 +592,7 @@ def _build_score(data: dict) -> Score:
 
             # Notes
             for n_data in m_data.get("notes", []):
-                note = _build_note(n_data)
+                note = _build_note(n_data, divisions=measure.divisions)
                 measure.notes.append(note)
 
             part.measures.append(measure)
@@ -625,8 +632,47 @@ def _sanitize_stem(raw) -> "Optional[str]":
     return normalized if normalized in _VALID_STEMS else None
 
 
-def _build_note(data: dict) -> Note:
-    """Convert raw note data to Note model."""
+def _infer_duration(note_type: NoteType, dots: int, divisions: int) -> int:
+    """Compute duration in MusicXML divisions from note type, dots, and divisions.
+
+    Duration table at divisions=1: whole=4, half=2, quarter=1.
+    Sub-quarter types require divisions > 1 (eighth needs divisions >= 2, etc.)
+
+    Args:
+        note_type: The type of note (whole, half, quarter, etc.)
+        dots: Number of dots on the note (0, 1, or 2)
+        divisions: Divisions per quarter note (from measure metadata)
+
+    Returns:
+        Duration in divisions units (integer, minimum 1)
+    """
+    # Base duration at divisions=1
+    base_at_1 = {
+        NoteType.WHOLE: 4,
+        NoteType.HALF: 2,
+        NoteType.QUARTER: 1,
+        NoteType.EIGHTH: 0.5,
+        NoteType.SIXTEENTH: 0.25,
+        NoteType.THIRTY_SECOND: 0.125,
+        NoteType.SIXTY_FOURTH: 0.0625,
+    }
+    base = base_at_1[note_type] * divisions
+    if dots:
+        # Dot multiplier: 1 dot = 1.5x, 2 dots = 1.75x, 3 dots = 1.875x
+        base = base * (2 - (0.5 ** dots))
+    return max(1, round(base))
+
+
+def _build_note(data: dict, divisions: int = 1) -> Note:
+    """Convert raw note data to Note model.
+
+    Args:
+        data: Raw note data from LLM extraction
+        divisions: Divisions per quarter note (from measure metadata)
+
+    Returns:
+        Note model with duration inferred if not provided by LLM
+    """
     note_type = NOTE_TYPE_MAP.get(data.get("type", "quarter"), NoteType.QUARTER)
 
     pitch = None
@@ -640,9 +686,19 @@ def _build_note(data: dict) -> Note:
             accidental=acc,
         )
 
+    # Use LLM-provided duration if available, otherwise infer from note type
+    if "duration" in data:
+        duration = data["duration"]
+    else:
+        duration = _infer_duration(
+            note_type,
+            data.get("dots", 0),
+            divisions
+        )
+
     return Note(
         note_type=note_type,
-        duration=data.get("duration", 1),
+        duration=duration,
         is_rest=data.get("is_rest", False),
         pitch=pitch,
         dot_count=data.get("dots", 0),

@@ -146,8 +146,8 @@ STEM OBSERVATION (CRITICAL — DO THIS FOR EVERY NOTE):
    - Is it treble (G clef), bass (F clef), or alto (C clef)?
 
    STEP 2: ESTABLISH THE REFERENCE PITCH AS SPATIAL ANCHOR
-   - Treble clef: spiral wraps around line 2 = G4. Lines bottom-to-top: E4 G4 B4 D5 F5. Spaces: F4 A4 C5 E5
-   - Bass clef: two dots around line 4 = F3. Lines: G2 B2 D3 F3 A3. Spaces: A2 C3 E3 G3
+   - Treble clef: spiral wraps around line 2 = G4. Lines bottom-to-top: E4 G4 B4 D5 F5 (Every Good Boy Does Fine). Spaces: F4 A4 C5 E5 (FACE)
+   - Bass clef: two dots around line 4 = F3. Lines: G2 B2 D3 F3 A3 (Good Boys Do Fine Always). Spaces: A2 C3 E3 G3 (All Cars Eat Gas)
    - Use this anchor for EVERY note — count from this known position
 
    TREBLE CLEF — CRITICAL BELOW-STAFF POSITIONS (frequently misread):
@@ -170,16 +170,18 @@ STEM OBSERVATION (CRITICAL — DO THIS FOR EVERY NOTE):
    - A3 = TOP LINE of the bass staff (line 5)
    - C3 = space between lines 2 and 3
 
-   STEP 3: FOR EACH NOTE, COUNT LINES/SPACES FROM ANCHOR
+   STEP 3: FOR EACH NOTE, COUNT LINES/SPACES FROM BOTTOM
    - FIRST ask: is the notehead ABOVE, ON, or BELOW the 5 staff lines?
-   - If BELOW line 1 (E4 in treble): count down from E4 to assign D4, C4, B3, etc.
-   - If ON the 5 staff lines or spaces: identify which line/space
-   - If ABOVE line 5 (F5 in treble): count up from F5 to assign G5, A5, etc.
+   - If BELOW line 1 (E4 in treble): count DOWN from the bottom line to assign D4, C4, B3, etc.
+   - If ON the 5 staff lines or spaces: COUNT FROM THE BOTTOM — identify which line (1-5) or space (1-4) counting from the bottom
+   - If ABOVE line 5 (F5 in treble): count UP from the top line to assign G5, A5, etc.
    - Each step up/down = one diatonic step (C D E F G A B then repeat)
+   - CRITICAL: Always count from the BOTTOM of the staff, not from the top. This prevents off-by-one errors.
 
    STEP 4: ASSIGN CORRECT OCTAVE
    - Octave changes at C (every C resets the octave number)
    - Middle C = C4 (one ledger line BELOW treble staff, ABOVE bass staff)
+   - CRITICAL — DO NOT GUESS OCTAVE: Infer the octave from the note's vertical position on the staff relative to the clef anchor. Do NOT use melody familiarity or musical intuition to guess the octave. The staff position is the ONLY source of truth.
 
 4. KEY/TIME/CLEF RULES:
    - First measure MUST include time_signature, key_signature, and clef.

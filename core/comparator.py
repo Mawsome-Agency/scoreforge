@@ -208,6 +208,10 @@ def compare_musicxml_semantic(
     total_time_checks = 0
     total_voice_correct = 0
     total_voice_checked = 0
+    total_ornaments = 0
+    ornaments_correct_total = 0
+    total_grace_notes = 0
+    grace_notes_correct_total = 0
 
     min_parts = min(gt_data["part_count"], ex_data["part_count"])
     for pi in range(min_parts):
@@ -251,6 +255,11 @@ def compare_musicxml_semantic(
                 if m_diff["time_correct"]:
                     total_time_correct += 1
 
+            total_ornaments += m_diff.get("ornaments_total", 0)
+            ornaments_correct_total += m_diff.get("ornaments_correct", 0)
+            total_grace_notes += m_diff.get("grace_notes_total", 0)
+            grace_notes_correct_total += m_diff.get("grace_notes_correct", 0)
+
         # Flag missing/extra measures
         if len(gt_part["measures"]) > len(ex_part["measures"]):
             for mi in range(len(ex_part["measures"]), len(gt_part["measures"])):
@@ -265,6 +274,10 @@ def compare_musicxml_semantic(
                     "gt_pitch_count": 0,
                     "key_checked": False, "key_correct": False,
                     "time_checked": False, "time_correct": False,
+                    "ornaments_total": 0,
+                    "ornaments_correct": 0,
+                    "grace_notes_total": 0,
+                    "grace_notes_correct": 0,
                     "diffs": [{"type": "missing_measure", "description": f"Measure {mi + 1} missing from extraction"}],
                 })
                 total_measures += 1
@@ -283,6 +296,10 @@ def compare_musicxml_semantic(
                     "gt_pitch_count": 0,
                     "key_checked": False, "key_correct": False,
                     "time_checked": False, "time_correct": False,
+                    "ornaments_total": 0,
+                    "ornaments_correct": 0,
+                    "grace_notes_total": 0,
+                    "grace_notes_correct": 0,
                     "diffs": [{"type": "extra_measure", "description": f"Extra measure {mi + 1} in extraction"}],
                 })
 
@@ -313,6 +330,8 @@ def compare_musicxml_semantic(
         "key_sig_accuracy": _pct(total_key_correct, total_key_checks),
         "time_sig_accuracy": _pct(total_time_correct, total_time_checks),
         "voice_accuracy": _pct(total_voice_correct, total_voice_checked),
+        "ornament_accuracy": _pct(ornaments_correct_total, total_ornaments),
+        "grace_note_accuracy": _pct(grace_notes_correct_total, total_grace_notes),
         "overall": _pct(
             total_pitches_correct + total_durations_correct + total_key_correct + total_time_correct,
             total_pitches + total_notes + total_key_checks + total_time_checks,
@@ -479,6 +498,20 @@ def _parse_note_element(note_el, ns: str, divisions: int) -> Optional[dict]:
         elif tie_el.get("type") == "stop":
             tie_stop = True
 
+    # Parse ornaments from <notations><ornaments>
+    ornaments: list[str] = []
+    notations_el = note_el.find(f"{ns}notations")
+    if notations_el is not None:
+        ornaments_el = notations_el.find(f"{ns}ornaments")
+        if ornaments_el is not None:
+            for child in ornaments_el:
+                tag = child.tag
+                # Strip namespace prefix from tag (e.g. "{http://...}trill-mark" → "trill-mark")
+                if ns and tag.startswith(ns):
+                    tag = tag[len(ns):]
+                if tag:
+                    ornaments.append(tag)
+
     return {
         "is_rest": is_rest,
         "is_chord": is_chord,
@@ -492,6 +525,7 @@ def _parse_note_element(note_el, ns: str, divisions: int) -> Optional[dict]:
         "staff": staff,
         "tie_start": tie_start,
         "tie_stop": tie_stop,
+        "ornaments": ornaments,
     }
 
 
@@ -578,6 +612,41 @@ def _compare_measures(gt_m: dict, ex_m: dict, measure_num: int) -> dict:
         gt_pitch_count += vgpc
         diffs.extend(vdiffs)
 
+    # --- Ornament scoring (per-voice positional match) ---
+    ornaments_total = 0
+    ornaments_correct = 0
+    for voice_num in sorted(gt_by_voice.keys()):
+        gt_voice = gt_by_voice[voice_num]
+        ex_voice = ex_by_voice.get(voice_num, [])
+        for ni, gt_n in enumerate(gt_voice):
+            gt_orns = gt_n.get("ornaments", [])
+            if not gt_orns:
+                continue
+            ornaments_total += len(gt_orns)
+            if ni < len(ex_voice):
+                ex_orns = ex_voice[ni].get("ornaments", [])
+                # Count each GT ornament that appears anywhere in the EX list at this position
+                for orn in gt_orns:
+                    if orn in ex_orns:
+                        ornaments_correct += 1
+
+    # --- Grace note scoring (global positional match by pitch) ---
+    gt_grace = [n for n in gt_notes if n.get("is_grace")]
+    ex_grace = [n for n in ex_notes if n.get("is_grace")]
+    grace_notes_total = len(gt_grace)
+    grace_notes_correct = 0
+    for ni, gt_gn in enumerate(gt_grace):
+        if ni >= len(ex_grace):
+            break
+        ex_gn = ex_grace[ni]
+        gt_p = gt_gn.get("pitch")
+        ex_p = ex_gn.get("pitch")
+        if (gt_p and ex_p
+                and gt_p["step"] == ex_p["step"]
+                and gt_p["octave"] == ex_p["octave"]
+                and gt_p.get("alter", 0) == ex_p.get("alter", 0)):
+            grace_notes_correct += 1
+
     is_perfect = (
         len(diffs) == 0
         and len(gt_notes) == len(ex_notes)
@@ -596,6 +665,10 @@ def _compare_measures(gt_m: dict, ex_m: dict, measure_num: int) -> dict:
         "key_correct": key_correct,
         "time_checked": time_checked,
         "time_correct": time_correct,
+        "ornaments_total": ornaments_total,
+        "ornaments_correct": ornaments_correct,
+        "grace_notes_total": grace_notes_total,
+        "grace_notes_correct": grace_notes_correct,
         "diffs": diffs,
     }
 

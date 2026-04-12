@@ -86,6 +86,104 @@ BUILT_IN_TESTS = [
         difficulty="hard",
         tags=["tuplets", "multi_voice", "triplets", "time_modification"],
     ),
+    TestCase(
+        name="annotations",
+        musicxml_path=str(FIXTURE_DIR / "annotations.musicxml"),
+        description="Piece with text annotations (rehearsal letters A, B, C), tempo markings, and expression text",
+        difficulty="medium",
+        tags=["text_expressions", "rehearsal_marks", "tempo_text"],
+    ),
+    TestCase(
+        name="clef_changes",
+        musicxml_path=str(FIXTURE_DIR / "clef_changes.musicxml"),
+        description="Single staff with multiple clef changes (treble → bass → alto/tenor), mid-measure or at barline",
+        difficulty="medium",
+        tags=["mid_measure_clef", "bass_clef", "alto_clef", "tenor_clef"],
+    ),
+    TestCase(
+        name="dynamics_hairpins",
+        musicxml_path=str(FIXTURE_DIR / "dynamics_hairpins.musicxml"),
+        description="Piece with dynamic markings (pp, mp, f, ff) and crescendo/decrescendo hairpins",
+        difficulty="medium",
+        tags=["dynamics", "hairpins", "cresc", "decresc", "pp_ff"],
+    ),
+    TestCase(
+        name="empty_score",
+        musicxml_path=str(FIXTURE_DIR / "empty_score.musicxml"),
+        description="Valid MusicXML with one part, one measure, whole rest — no pitched notes (edge case)",
+        difficulty="edge_case",
+        tags=["empty", "zero_notes", "error_handling"],
+    ),
+    TestCase(
+        name="full_orchestra",
+        musicxml_path=str(FIXTURE_DIR / "full_orchestra.musicxml"),
+        description="Full orchestra score with multiple parts including strings, winds, brass, and transposing instruments",
+        difficulty="expert",
+        tags=["multi_part", "transposing_instruments", "score_layout"],
+    ),
+    TestCase(
+        name="key_changes",
+        musicxml_path=str(FIXTURE_DIR / "key_changes.musicxml"),
+        description="Multi-measure piece with key signature changes mid-piece and cancellation naturals",
+        difficulty="medium",
+        tags=["key_sig_change", "mid_piece_modulation", "naturals"],
+    ),
+    TestCase(
+        name="lyrics_verses",
+        musicxml_path=str(FIXTURE_DIR / "lyrics_verses.musicxml"),
+        description="Vocal part with lyrics across multiple verses, syllable hyphenation and verse numbering",
+        difficulty="medium",
+        tags=["lyrics", "multi_verse", "syllable_split"],
+    ),
+    TestCase(
+        name="marching_stickings",
+        musicxml_path=str(FIXTURE_DIR / "marching_stickings.musicxml"),
+        description="Snare drum part in 4/4 with unpitched percussion notation and R/L sticking text expressions",
+        difficulty="medium",
+        tags=["percussion", "unpitched", "stickings", "text_expressions"],
+    ),
+    TestCase(
+        name="mixed_meters",
+        musicxml_path=str(FIXTURE_DIR / "mixed_meters.musicxml"),
+        description="4 measures with alternating unusual time signatures (7/8, 5/4, etc.), no key signature",
+        difficulty="hard",
+        tags=["time_sig_changes", "7/8", "5/4", "irregular_grouping"],
+    ),
+    TestCase(
+        name="multi_voice",
+        musicxml_path=str(FIXTURE_DIR / "multi_voice.musicxml"),
+        description="4/4, 4 measures with two-voice counterpoint using backup element; measure 1 voice 1+2, measures 2-4 whole-note chords",
+        difficulty="hard",
+        tags=["two_voice", "backup_element", "counterpoint", "chord_vs_voice"],
+    ),
+    TestCase(
+        name="ornaments",
+        musicxml_path=str(FIXTURE_DIR / "ornaments.musicxml"),
+        description="4/4, 4 measures in C major with ornaments: trill, turn, mordent, inverted-mordent, and tremolo",
+        difficulty="medium",
+        tags=["trill", "turn", "mordent", "tremolo", "notations"],
+    ),
+    TestCase(
+        name="repeats_codas",
+        musicxml_path=str(FIXTURE_DIR / "repeats_codas.musicxml"),
+        description="Short piece with repeat barlines, 1st/2nd endings (volta brackets), and coda/segno navigation symbols",
+        difficulty="medium",
+        tags=["repeat_barlines", "volta_brackets", "coda", "segno"],
+    ),
+    TestCase(
+        name="solo_with_accompaniment",
+        musicxml_path=str(FIXTURE_DIR / "solo_with_accompaniment.musicxml"),
+        description="Three-part score with solo violin melody over piano grand staff accompaniment",
+        difficulty="medium",
+        tags=["multi_part", "grand_staff", "solo", "accompaniment"],
+    ),
+    TestCase(
+        name="title_metadata",
+        musicxml_path=str(FIXTURE_DIR / "title_metadata.musicxml"),
+        description="4/4 treble-clef melody with full score metadata: title, subtitle, composer, arranger, lyricist, copyright",
+        difficulty="easy",
+        tags=["metadata", "title", "composer", "copyright"],
+    ),
 ]
 
 
@@ -105,6 +203,7 @@ class TestResult:
     compare_ok: bool = False
     visual_score: Optional[int] = None
     error: Optional[str] = None
+    skipped: bool = False
     duration_seconds: float = 0.0
     gt_note_count: int = 0
     matched_note_count: int = 0
@@ -138,7 +237,7 @@ def discover_corpus_pdfs() -> list[Path]:
 
 def run_corpus_pdf(
     pdf_path: Path,
-    model: str = "claude-sonnet-4-6",
+    model: str = "auto",
 ) -> CorpusResult:
     """Test extraction on a real-world corpus PDF (no GT — parse success only).
 
@@ -149,7 +248,7 @@ def run_corpus_pdf(
     result = CorpusResult(name=pdf_path.stem, passed=False)
 
     try:
-        score = extract_from_image(str(pdf_path), model=model)
+        score, _model_info = extract_from_image(str(pdf_path), model=model)
         result.extract_ok = True
         result.note_count = sum(len(m.notes) for p in score.parts for m in p.measures)
         result.measure_count = sum(len(p.measures) for p in score.parts)
@@ -196,7 +295,7 @@ def discover_fixtures() -> list[TestCase]:
 
 def run_test(
     test: TestCase,
-    model: str = "claude-sonnet-4-6",
+    model: str = "auto",
     skip_api: bool = False,
     work_dir: Optional[Path] = None,
 ) -> TestResult:
@@ -235,13 +334,14 @@ def run_test(
         console.print(f"  [yellow]Skipping API extraction (--no-api)[/yellow]")
         result.render_ok = True
         result.duration_seconds = time.time() - start_time
-        result.error = "Skipped (--no-api)"
+        result.error = None
+        result.skipped = True
         return result
 
     # --- Step 2: Extract from image ---
     console.print(f"  [dim]Extracting with Claude Vision...[/dim]")
     try:
-        score = extract_from_image(gt_png, model=model)
+        score, _model_info = extract_from_image(gt_png, model=model)
         result.extract_ok = True
     except Exception as e:
         result.error = f"Extraction failed: {e}"
@@ -292,7 +392,7 @@ def run_test(
 
 def run_all_tests(
     tests: list[TestCase],
-    model: str = "claude-sonnet-4-6",
+    model: str = "auto",
     skip_api: bool = False,
 ) -> list[TestResult]:
     """Run all test cases and return results."""
@@ -310,6 +410,8 @@ def run_all_tests(
         # Print immediate result
         if result.passed:
             console.print(f"  [bold green]PASSED[/bold green] ({result.duration_seconds:.1f}s)")
+        elif result.skipped:
+            console.print(f"  [dim]SKIPPED[/dim] (--no-api, {result.duration_seconds:.1f}s)")
         elif result.error:
             console.print(f"  [bold red]ERROR[/bold red]: {result.error}")
         else:
@@ -373,7 +475,14 @@ def print_report(results: list[TestResult]):
     table.add_column("Time", justify="right")
 
     for r in results:
-        status = "[green]PASS[/green]" if r.passed else ("[red]ERROR[/red]" if r.error and not r.compare_ok else "[yellow]FAIL[/yellow]")
+        if r.passed:
+            status = "[green]PASS[/green]"
+        elif r.skipped:
+            status = "[dim]SKIP[/dim]"
+        elif r.error and not r.compare_ok:
+            status = "[red]ERROR[/red]"
+        else:
+            status = "[yellow]FAIL[/yellow]"
         notes = f"{r.matched_note_count}/{r.gt_note_count}" if r.gt_note_count else "-"
         pitch = f"{r.scores.get('pitch_accuracy', 0):.0f}%" if r.scores else "-"
         rhythm = f"{r.scores.get('rhythm_accuracy', 0):.0f}%" if r.scores else "-"
@@ -388,10 +497,11 @@ def print_report(results: list[TestResult]):
     # Aggregate stats
     total = len(results)
     passed = sum(1 for r in results if r.passed)
-    failed = sum(1 for r in results if not r.passed and r.compare_ok)
-    errors = sum(1 for r in results if r.error and not r.compare_ok)
+    skipped = sum(1 for r in results if r.skipped)
+    failed = sum(1 for r in results if not r.passed and not r.skipped and r.compare_ok)
+    errors = sum(1 for r in results if r.error and not r.compare_ok and not r.skipped)
 
-    console.print(f"\n  Total: {total}  Passed: {passed}  Failed: {failed}  Errors: {errors}")
+    console.print(f"\n  Total: {total}  Passed: {passed}  Failed: {failed}  Errors: {errors}  Skipped: {skipped}")
 
     if results and any(r.scores for r in results):
         scored = [r for r in results if r.scores]
@@ -410,10 +520,12 @@ def print_report(results: list[TestResult]):
         "passed": passed,
         "failed": failed,
         "errors": errors,
+        "skipped": skipped,
         "results": [
             {
                 "name": r.test_name,
                 "passed": r.passed,
+                "skipped": r.skipped,
                 "scores": r.scores,
                 "visual_score": r.visual_score,
                 "gt_notes": r.gt_note_count,
@@ -436,7 +548,7 @@ def print_report(results: list[TestResult]):
 
 @click.command()
 @click.option("--fixture", "-f", default=None, help="Run only this fixture (by name)")
-@click.option("--model", "-m", default="claude-sonnet-4-6", help="Claude model")
+@click.option("--model", "-m", default="auto", help="Claude model")
 @click.option("--no-api", is_flag=True, help="Skip API calls (test rendering/infra only)")
 @click.option("--list-fixtures", is_flag=True, help="List available fixtures and exit")
 @click.option("--corpus", is_flag=True, help="Also run corpus PDF parse tests")
@@ -530,7 +642,7 @@ if __name__ == "__main__":
 # Integration with validate_baseline.py
 # ---------------------------------------------------------------------------
 
-def get_baseline_metrics(model: str = "claude-sonnet-4-6", skip_api: bool = False) -> dict:
+def get_baseline_metrics(model: str = "auto", skip_api: bool = False) -> dict:
     """Get baseline metrics for all fixtures.
 
     This function is designed to be imported by validate_baseline.py
@@ -548,8 +660,9 @@ def get_baseline_metrics(model: str = "claude-sonnet-4-6", skip_api: bool = Fals
 
     total = len(results)
     passed = sum(1 for r in results if r.passed)
-    failed = sum(1 for r in results if not r.passed and r.compare_ok)
-    errors = sum(1 for r in results if r.error and not r.compare_ok)
+    skipped = sum(1 for r in results if r.skipped)
+    failed = sum(1 for r in results if not r.passed and not r.skipped and r.compare_ok)
+    errors = sum(1 for r in results if r.error and not r.compare_ok and not r.skipped)
 
     scored = [r for r in results if r.scores]
     if scored:
@@ -570,6 +683,7 @@ def get_baseline_metrics(model: str = "claude-sonnet-4-6", skip_api: bool = Fals
             "passed": passed,
             "failed": failed,
             "errors": errors,
+            "skipped": skipped,
             "avg_note_accuracy": avg_note,
             "avg_pitch_accuracy": avg_pitch,
             "avg_rhythm_accuracy": avg_rhythm,
@@ -583,6 +697,7 @@ def get_baseline_metrics(model: str = "claude-sonnet-4-6", skip_api: bool = Fals
             {
                 "name": r.test_name,
                 "passed": r.passed,
+                "skipped": r.skipped,
                 "scores": r.scores,
                 "gt_notes": r.gt_note_count,
                 "matched_notes": r.matched_note_count,
@@ -594,7 +709,7 @@ def get_baseline_metrics(model: str = "claude-sonnet-4-6", skip_api: bool = Fals
     }
 
 
-def run_baseline_validation(output_path: Optional[Path] = None, model: str = "claude-sonnet-4-6") -> dict:
+def run_baseline_validation(output_path: Optional[Path] = None, model: str = "auto") -> dict:
     """Run baseline validation and return results.
 
     This is a convenience function that can be called from validate_baseline.py

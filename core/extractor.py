@@ -154,6 +154,12 @@ STEM OBSERVATION (CRITICAL — DO THIS FOR EVERY NOTE):
    - Octave changes at C (every C resets the octave number)
    - Middle C = C4 (one ledger line below treble staff)
 
+   STEP 5: APPLY KEY SIGNATURE, THEN EXPLICIT ACCIDENTALS
+   - First apply the key signature: sharps/flats in the key sig alter ALL notes on those scale degrees throughout the measure (e.g., key of G major has F#, so every F is F# unless cancelled)
+   - THEN apply any explicit accidental printed directly beside the notehead (overrides the key sig for that note only)
+   - A natural sign (♮) printed next to a note CANCELS the key signature for that note — set alter=0 and accidental="natural"
+   - Courtesy/cautionary accidentals (in parentheses) do not change the pitch — set accidental=null unless the accidental is functionally needed
+
 4. KEY/TIME/CLEF RULES:
    - First measure MUST include time_signature, key_signature, and clef.
    - Subsequent measures: include these ONLY when they CHANGE.

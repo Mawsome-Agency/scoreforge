@@ -1012,3 +1012,137 @@ class TestVoiceAssignmentFallbacks:
         assert notes[0].find("stem").text == "up"
         assert notes[1].find("voice").text == "2"
         assert notes[1].find("stem").text == "down"
+
+
+# ============================================================================
+# 14. is_perfect KEY/TIME — compare_musicxml_semantic must require correct
+#     key and time signatures for is_perfect to be True.
+# ============================================================================
+
+import tempfile
+import os
+
+
+def _write_musicxml(content: str) -> str:
+    """Write MusicXML content to a temp file and return the path."""
+    fd, path = tempfile.mkstemp(suffix=".musicxml")
+    with os.fdopen(fd, "w") as f:
+        f.write(content)
+    return path
+
+
+_MUSICXML_HEADER = """<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+"""
+
+_MUSICXML_FOOTER = """  </part>
+</score-partwise>
+"""
+
+
+def _make_score_xml(key_fifths: int = 0, time_beats: int = 4, time_beat_type: int = 4,
+                    divisions: int = 1) -> str:
+    """Generate a minimal 1-measure MusicXML with one quarter note."""
+    return (
+        _MUSICXML_HEADER
+        + f"""    <measure number="1">
+      <attributes>
+        <divisions>{divisions}</divisions>
+        <key><fifths>{key_fifths}</fifths><mode>major</mode></key>
+        <time><beats>{time_beats}</beats><beat-type>{time_beat_type}</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <note>
+        <pitch><step>C</step><octave>4</octave></pitch>
+        <duration>{divisions}</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+      </note>
+    </measure>
+"""
+        + _MUSICXML_FOOTER
+    )
+
+
+class TestIsPerfectKeyTime:
+    """compare_musicxml_semantic.is_perfect must be False when key or time differs."""
+
+    def test_identical_files_are_perfect(self):
+        """Self-comparison must be is_perfect=True."""
+        path = _write_musicxml(_make_score_xml(key_fifths=0))
+        try:
+            result = compare_musicxml_semantic(path, path)
+            assert result["is_perfect"] is True
+        finally:
+            os.unlink(path)
+
+    def test_wrong_key_makes_not_perfect(self):
+        """When extracted key differs from GT, is_perfect must be False."""
+        gt_path = _write_musicxml(_make_score_xml(key_fifths=0))
+        ex_path = _write_musicxml(_make_score_xml(key_fifths=2))  # D major vs C major
+        try:
+            result = compare_musicxml_semantic(gt_path, ex_path)
+            assert result["is_perfect"] is False
+        finally:
+            os.unlink(gt_path)
+            os.unlink(ex_path)
+
+    def test_wrong_time_makes_not_perfect(self):
+        """When extracted time signature differs from GT, is_perfect must be False."""
+        gt_path = _write_musicxml(_make_score_xml(time_beats=4, time_beat_type=4))
+        ex_path = _write_musicxml(_make_score_xml(time_beats=3, time_beat_type=4))  # 3/4 vs 4/4
+        try:
+            result = compare_musicxml_semantic(gt_path, ex_path)
+            assert result["is_perfect"] is False
+        finally:
+            os.unlink(gt_path)
+            os.unlink(ex_path)
+
+    def test_wrong_key_reported_in_scores(self):
+        """key_sig_accuracy must be 0 when key is wrong."""
+        gt_path = _write_musicxml(_make_score_xml(key_fifths=0))
+        ex_path = _write_musicxml(_make_score_xml(key_fifths=3))
+        try:
+            result = compare_musicxml_semantic(gt_path, ex_path)
+            assert result["scores"]["key_sig_accuracy"] == 0.0
+        finally:
+            os.unlink(gt_path)
+            os.unlink(ex_path)
+
+    def test_wrong_time_reported_in_scores(self):
+        """time_sig_accuracy must be 0 when time is wrong."""
+        gt_path = _write_musicxml(_make_score_xml(time_beats=4, time_beat_type=4))
+        ex_path = _write_musicxml(_make_score_xml(time_beats=2, time_beat_type=2))
+        try:
+            result = compare_musicxml_semantic(gt_path, ex_path)
+            assert result["scores"]["time_sig_accuracy"] == 0.0
+        finally:
+            os.unlink(gt_path)
+            os.unlink(ex_path)
+
+    def test_voice_accuracy_in_scores(self):
+        """voice_accuracy must be present in scores output."""
+        path = _write_musicxml(_make_score_xml())
+        try:
+            result = compare_musicxml_semantic(path, path)
+            assert "voice_accuracy" in result["scores"]
+            assert result["scores"]["voice_accuracy"] == 100.0
+        finally:
+            os.unlink(path)
+
+    def test_duration_normalization_cross_divisions(self):
+        """A quarter note at divisions=10080 and divisions=1 must compare equal."""
+        # GT uses divisions=10080 (music21 default), ex uses divisions=1
+        gt_path = _write_musicxml(_make_score_xml(divisions=10080))
+        ex_path = _write_musicxml(_make_score_xml(divisions=1))
+        try:
+            result = compare_musicxml_semantic(gt_path, ex_path)
+            # Duration should match despite different raw values
+            assert result["scores"]["rhythm_accuracy"] == 100.0
+        finally:
+            os.unlink(gt_path)
+            os.unlink(ex_path)

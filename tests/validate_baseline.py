@@ -13,7 +13,15 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Load .env so API keys are available when running outside PM2
+_repo_root = Path(__file__).parent.parent
+try:
+    from dotenv import load_dotenv
+    load_dotenv(_repo_root / ".env", override=False)
+except ImportError:
+    pass
+
+sys.path.insert(0, str(_repo_root))
 
 from core.renderer import render_musicxml_to_image
 from core.comparator import compare_musicxml_semantic
@@ -139,7 +147,7 @@ def run_fixture(fixture: FixtureInfo, model: str = "claude-sonnet-4-6") -> Fixtu
         return result
 
     try:
-        score = extract_from_image(gt_png, model=model)
+        score, _extract_meta = extract_from_image(gt_png, model=model)
         result.extract_ok = True
     except Exception as e:
         result.error = f"Extraction failed: {e}"

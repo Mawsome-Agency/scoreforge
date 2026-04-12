@@ -279,25 +279,43 @@ def stream_and_collect(**kwargs) -> str:
     Accepts Anthropic-format kwargs (model, max_tokens, messages, etc.).
     Automatically translates for Ollama providers.
 
+    Special kwarg:
+        force_provider (str): If set, only try the provider whose name starts
+            with this string (e.g. "anthropic").  Falls back to round-robin
+            if the pinned provider is unavailable.
+
     Returns the complete response text.  Sets _last_provider / _last_model
     for the caller to retrieve via get_last_model_info().
     """
     global _rr_index, _last_provider, _last_model
 
+    force_provider = kwargs.pop("force_provider", None)
+
     providers = _get_all_providers()
     n = len(providers)
     max_waits = 2
 
+    # When a provider is pinned, build an ordered list: pinned first, rest as fallback.
+    if force_provider:
+        pinned = [p for p in providers if p.name.startswith(force_provider)]
+        others = [p for p in providers if not p.name.startswith(force_provider)]
+        ordered_providers = pinned + others
+    else:
+        ordered_providers = None  # use round-robin below
+
     for wait_round in range(max_waits + 1):
-        # Pick starting index via round-robin
-        with _rr_lock:
-            start = _rr_index % n
-            _rr_index += 1
+        if ordered_providers is not None:
+            # Pinned provider path — no round-robin index update
+            candidate_list = ordered_providers
+        else:
+            # Pick starting index via round-robin
+            with _rr_lock:
+                start = _rr_index % n
+                _rr_index += 1
+            candidate_list = [providers[(start + offset) % n] for offset in range(n)]
 
         # Try each provider starting from the round-robin position
-        for offset in range(n):
-            idx = (start + offset) % n
-            p = providers[idx]
+        for p in candidate_list:
 
             if _is_rate_limited(p.name):
                 continue

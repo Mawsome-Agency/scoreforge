@@ -363,6 +363,12 @@ def _extract_two_pass(
     structure_json_str = _extract_json_from_response(structure_text)
     structure_data = json.loads(structure_json_str)
 
+    # Pin pass 2 to the same provider as pass 1.
+    # Round-robin would otherwise hand pass 2 to a different provider, breaking
+    # the structured context and causing unreliable/empty note extraction.
+    pass1_info = api.get_last_model_info()
+    pass1_provider = pass1_info.get("provider", "auto")
+
     # --- Pass 2: Extract detailed notes ---
     detail_prompt = DETAIL_PROMPT.format(
         structure_json=json.dumps(structure_data, indent=2)
@@ -379,6 +385,9 @@ def _extract_two_pass(
             }
         ],
     }
+    # Force same provider as pass 1 (unless unknown)
+    if pass1_provider and pass1_provider != "unknown":
+        api_kwargs["force_provider"] = pass1_provider
 
     # Use extended thinking for complex scores if the model supports it
     if use_thinking and _model_supports_thinking(model):

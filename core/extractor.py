@@ -298,6 +298,7 @@ def extract_from_image(
     model: str = "auto",
     use_thinking: bool = True,
     two_pass: bool = True,
+    force_provider: Optional[str] = None,
 ) -> tuple["Score", dict]:
     """Extract musical score from an image using vision AI (round-robin).
 
@@ -306,6 +307,8 @@ def extract_from_image(
         model: Model override or "auto" for round-robin selection.
         use_thinking: Whether to use extended thinking for complex analysis.
         two_pass: Whether to do structure-first then detail extraction.
+        force_provider: If set, pin both passes to this provider (e.g. "anthropic").
+            Useful for quality-critical paths where Ollama is unreliable.
 
     Returns:
         Tuple of (Score, model_info_dict) where model_info contains
@@ -324,7 +327,7 @@ def extract_from_image(
     }
 
     if two_pass:
-        score = _extract_two_pass(image_block, model, use_thinking)
+        score = _extract_two_pass(image_block, model, use_thinking, force_provider=force_provider)
     else:
         score = _extract_single_pass(image_block, model, use_thinking)
 
@@ -344,11 +347,12 @@ def _extract_two_pass(
     image_block: dict,
     model: str,
     use_thinking: bool,
+    force_provider: Optional[str] = None,
 ) -> Score:
     """Two-pass extraction: structure first, then note-by-note details."""
 
     # --- Pass 1: Extract structure ---
-    structure_kwargs = {
+    structure_kwargs: dict = {
         "model": model,
         "max_tokens": 4000,
         "messages": [
@@ -358,6 +362,9 @@ def _extract_two_pass(
             }
         ],
     }
+    # If a provider is explicitly forced, apply to pass 1 as well.
+    if force_provider:
+        structure_kwargs["force_provider"] = force_provider
 
     structure_text = api.stream_and_collect(**structure_kwargs)
     structure_json_str = _extract_json_from_response(structure_text)
@@ -366,8 +373,11 @@ def _extract_two_pass(
     # Pin pass 2 to the same provider as pass 1.
     # Round-robin would otherwise hand pass 2 to a different provider, breaking
     # the structured context and causing unreliable/empty note extraction.
-    pass1_info = api.get_last_model_info()
-    pass1_provider = pass1_info.get("provider", "auto")
+    if force_provider:
+        pinned_provider = force_provider
+    else:
+        pass1_info = api.get_last_model_info()
+        pinned_provider = pass1_info.get("provider") or "auto"
 
     # --- Pass 2: Extract detailed notes ---
     detail_prompt = DETAIL_PROMPT.format(
@@ -375,7 +385,7 @@ def _extract_two_pass(
     )
 
     # Build the API call kwargs
-    api_kwargs = {
+    api_kwargs: dict = {
         "model": model,
         "max_tokens": 16000,
         "messages": [
@@ -386,8 +396,8 @@ def _extract_two_pass(
         ],
     }
     # Force same provider as pass 1 (unless unknown)
-    if pass1_provider and pass1_provider != "unknown":
-        api_kwargs["force_provider"] = pass1_provider
+    if pinned_provider and pinned_provider != "unknown":
+        api_kwargs["force_provider"] = pinned_provider
 
     # Use extended thinking for complex scores if the model supports it
     if use_thinking and _model_supports_thinking(model):

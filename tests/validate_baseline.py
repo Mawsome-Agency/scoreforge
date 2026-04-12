@@ -147,7 +147,9 @@ def run_fixture(fixture: FixtureInfo, model: str = "claude-sonnet-4-6") -> Fixtu
         return result
 
     try:
-        score, _extract_meta = extract_from_image(gt_png, model=model)
+        # Pin to anthropic for all baseline runs — Ollama returns empty measures
+        # unreliably and is not suitable for quality measurement.
+        score, _extract_meta = extract_from_image(gt_png, model=model, force_provider="anthropic")
         result.extract_ok = True
     except Exception as e:
         result.error = f"Extraction failed: {e}"

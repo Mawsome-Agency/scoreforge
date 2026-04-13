@@ -14,19 +14,137 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from rich.console import Console
-from rich.table import Table
+# Try to import rich, fallback to plain text if not available
+try:
+    from rich.console import Console
+    from rich.table import Table
+    HAS_RICH = True
+except ImportError:
+    HAS_RICH = False
+    # Define fallback classes for plain text output
+    class Console:
+        def print(self, *args, **kwargs):
+            # Strip basic markup tags
+            text = " ".join(str(a) for a in args)
+            text = text.replace("[bold]", "").replace("[/bold]", "")
+            text = text.replace("[green]", "").replace("[/green]", "")
+            text = text.replace("[red]", "").replace("[/red]", "")
+            text = text.replace("[yellow]", "").replace("[/yellow]", "")
+            print(text)
+
+    class Table:
+        def __init__(self, title=None):
+            self.title = title
+            self.columns = []
+            self.rows = []
+
+        def add_column(self, name, **kwargs):
+            self.columns.append(name)
+
+        def add_row(self, *cells):
+            self.rows.append(cells)
+
+        def __str__(self):
+            lines = []
+            if self.title:
+                lines.append(f"\n{self.title}")
+                lines.append("=" * len(self.title))
+            lines.append(" | ".join(self.columns))
+            lines.append("-" * 40)
+            for row in self.rows:
+                lines.append(" | ".join(str(c) for c in row))
+            return "\n".join(lines)
 
 # Add parent directory to path for imports
 _repo_root = Path(__file__).parent.parent
 sys.path.insert(0, str(_repo_root))
 
-from core.comparator import _parse_musicxml
+# Try to import _parse_musicxml, fallback to ElementTree parser if not available
+try:
+    from core.comparator import _parse_musicxml
+except ImportError:
+    # Fallback parser using ElementTree
+    import xml.etree.ElementTree as ET
+
+    def _parse_musicxml(filepath: str) -> dict:
+        """Fallback XML parser if comparator is not available."""
+        try:
+            tree = ET.parse(filepath)
+            root = tree.getroot()
+
+            # Handle namespace
+            ns = {}
+            if root.tag.startswith('{'):
+                ns_uri = root.tag[1:].split('}')[0]
+                ns['m'] = ns_uri
+
+            parts = []
+            part_elements = root.findall('.//m:part', ns) if ns else root.findall('.//part')
+            if not part_elements:
+                part_elements = [root]  # Single part document
+
+            for part_elem in part_elements:
+                measures = []
+                measure_elements = part_elem.findall('m:measure', ns) if ns else part_elem.findall('measure')
+                for measure_elem in measure_elements:
+                    notes = []
+                    note_elements = measure_elem.findall('m:note', ns) if ns else measure_elem.findall('note')
+                    for note_elem in note_elements:
+                        note_data = {}
+                        # Duration
+                        duration = note_elem.find('m:duration', ns) if ns else note_elem.find('duration')
+                        if duration is not None and duration.text:
+                            try:
+                                note_data['duration'] = int(duration.text)
+                            except ValueError:
+                                note_data['duration'] = 0
+
+                        # Type
+                        type_elem = note_elem.find('m:type', ns) if ns else note_elem.find('type')
+                        if type_elem is not None:
+                            note_data['type'] = type_elem.text
+
+                        # Grace note
+                        grace = note_elem.find('m:grace', ns) if ns else note_elem.find('grace')
+                        if grace is not None:
+                            note_data['is_grace'] = True
+
+                        # Rest
+                        rest = note_elem.find('m:rest', ns) if ns else note_elem.find('rest')
+                        if rest is not None:
+                            note_data['is_rest'] = True
+
+                        # Pitch
+                        pitch = note_elem.find('m:pitch', ns) if ns else note_elem.find('pitch')
+                        if pitch is not None:
+                            step = pitch.find('m:step', ns) if ns else pitch.find('step')
+                            octave = pitch.find('m:octave', ns) if ns else pitch.find('octave')
+                            if step is not None and octave is not None:
+                                note_data['pitch'] = {'step': step.text, 'octave': octave.text}
+
+                        notes.append(note_data)
+
+                    measure_num = measure_elem.get('number', '0')
+                    try:
+                        measure_number = int(measure_num)
+                    except ValueError:
+                        measure_number = 0
+
+                    measures.append({
+                        'number': measure_number,
+                        'notes': notes
+                    })
+
+                parts.append({'measures': measures})
+
+            return {'parts': parts}
+        except Exception as e:
+            # Return minimal structure on error
+            return {'parts': [], 'error': str(e)}
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
-# Results directory is in the main repo at /home/deployer/scoreforge/results/
-# This script may run from a worktree, so we use the absolute path
-RESULTS_DIR = Path("/home/deployer/scoreforge/results")
+# Use relative path from repo root instead of hardcoded absolute path
+RESULTS_DIR = _repo_root / "results"
 
 
 @dataclass
@@ -73,11 +191,21 @@ class SmokeTest:
         result = FixtureQualityResult(fixture_name=fixture_name)
 
         # Check if extracted file exists
+        # First try direct path: results/fixture_name/extracted.musicxml
         extracted_path = RESULTS_DIR / fixture_name / "extracted.musicxml"
+
+        # If not found, look for it in subdirectories (iteration results)
         if not extracted_path.exists():
-            result.has_extracted = False
-            result.error = "No extracted file found"
-            return result
+            # Look for the most recent extracted file in any subdirectory
+            candidate_paths = list(RESULTS_DIR.glob(f"{fixture_name}/**/extracted.musicxml"))
+            if candidate_paths:
+                # Sort by modification time and take the most recent
+                candidate_paths.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+                extracted_path = candidate_paths[0]
+            else:
+                result.has_extracted = False
+                result.error = "No extracted file found"
+                return result
 
         result.has_extracted = True
 

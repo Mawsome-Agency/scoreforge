@@ -183,6 +183,12 @@ STEM OBSERVATION (CRITICAL — DO THIS FOR EVERY NOTE):
    - Middle C = C4 (one ledger line BELOW treble staff, ABOVE bass staff)
    - CRITICAL — DO NOT GUESS OCTAVE: Infer the octave from the note's vertical position on the staff relative to the clef anchor. Do NOT use melody familiarity or musical intuition to guess the octave. The staff position is the ONLY source of truth.
 
+   STEP 5: APPLY KEY SIGNATURE, THEN EXPLICIT ACCIDENTALS
+   - First apply the key signature: sharps/flats in the key sig alter ALL notes on those scale degrees throughout the measure (e.g., key of G major has F#, so every F is F# unless cancelled)
+   - THEN apply any explicit accidental printed directly beside the notehead (overrides the key sig for that note only)
+   - A natural sign (♮) printed next to a note CANCELS the key signature for that note — set alter=0 and accidental="natural"
+   - Courtesy/cautionary accidentals (in parentheses) do not change the pitch — set accidental=null unless the accidental is functionally needed
+
 4. KEY/TIME/CLEF RULES:
    - First measure MUST include time_signature, key_signature, and clef.
    - Subsequent measures: include these ONLY when they CHANGE.

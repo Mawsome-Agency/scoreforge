@@ -10,6 +10,7 @@ from lxml import etree
 from PIL import Image
 import imagehash
 from core import api
+from core.validator import validate_musicxml_structure
 
 
 # ============================================================================
@@ -183,9 +184,15 @@ def compare_musicxml_semantic(
         Structured comparison result with per-measure and per-note diffs,
         plus aggregate accuracy scores.
     """
+    # Validate both MusicXML files before semantic comparison
+    is_valid_gt, err_gt = validate_musicxml_structure(ground_truth_path)
+    is_valid_ex, err_ex = validate_musicxml_structure(extracted_path)
+    if not is_valid_gt:
+        return {"structural_validity": False, "validation_error": err_gt}
+    if not is_valid_ex:
+        return {"structural_validity": False, "validation_error": err_ex}
     gt_data = _parse_musicxml(ground_truth_path)
     ex_data = _parse_musicxml(extracted_path)
-
     result = {
         "part_count_match": gt_data["part_count"] == ex_data["part_count"],
         "gt_part_count": gt_data["part_count"],

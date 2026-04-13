@@ -1,155 +1,26 @@
 #!/usr/bin/env python3
-"""ScoreForge Extraction Quality Smoke Test.
+"""Extraction quality smoke test — validates extracted MusicXML structure.
 
-This is a diagnostic tool that validates the STRUCTURE of extracted MusicXML files
-against their ground truth fixtures — no API calls required.
-
-Usage:
-    python3 tests/test_extraction_quality.py
-
-Output: ASCII table showing per-fixture structural quality.
+Usage: python3 tests/test_extraction_quality.py
 """
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-# Try to import rich, fallback to plain text if not available
-try:
-    from rich.console import Console
-    from rich.table import Table
-    HAS_RICH = True
-except ImportError:
-    HAS_RICH = False
-    # Define fallback classes for plain text output
-    class Console:
-        def print(self, *args, **kwargs):
-            # Strip basic markup tags
-            text = " ".join(str(a) for a in args)
-            text = text.replace("[bold]", "").replace("[/bold]", "")
-            text = text.replace("[green]", "").replace("[/green]", "")
-            text = text.replace("[red]", "").replace("[/red]", "")
-            text = text.replace("[yellow]", "").replace("[/yellow]", "")
-            print(text)
+from rich.console import Console
+from rich.table import Table
 
-    class Table:
-        def __init__(self, title=None):
-            self.title = title
-            self.columns = []
-            self.rows = []
-
-        def add_column(self, name, **kwargs):
-            self.columns.append(name)
-
-        def add_row(self, *cells):
-            self.rows.append(cells)
-
-        def __str__(self):
-            lines = []
-            if self.title:
-                lines.append(f"\n{self.title}")
-                lines.append("=" * len(self.title))
-            lines.append(" | ".join(self.columns))
-            lines.append("-" * 40)
-            for row in self.rows:
-                lines.append(" | ".join(str(c) for c in row))
-            return "\n".join(lines)
-
-# Add parent directory to path for imports
 _repo_root = Path(__file__).parent.parent
 sys.path.insert(0, str(_repo_root))
+from core.comparator import _parse_musicxml
 
-# Try to import _parse_musicxml, fallback to ElementTree parser if not available
-try:
-    from core.comparator import _parse_musicxml
-except ImportError:
-    # Fallback parser using ElementTree
-    import xml.etree.ElementTree as ET
-
-    def _parse_musicxml(filepath: str) -> dict:
-        """Fallback XML parser if comparator is not available."""
-        try:
-            tree = ET.parse(filepath)
-            root = tree.getroot()
-
-            # Handle namespace
-            ns = {}
-            if root.tag.startswith('{'):
-                ns_uri = root.tag[1:].split('}')[0]
-                ns['m'] = ns_uri
-
-            parts = []
-            part_elements = root.findall('.//m:part', ns) if ns else root.findall('.//part')
-            if not part_elements:
-                part_elements = [root]  # Single part document
-
-            for part_elem in part_elements:
-                measures = []
-                measure_elements = part_elem.findall('m:measure', ns) if ns else part_elem.findall('measure')
-                for measure_elem in measure_elements:
-                    notes = []
-                    note_elements = measure_elem.findall('m:note', ns) if ns else measure_elem.findall('note')
-                    for note_elem in note_elements:
-                        note_data = {}
-                        # Duration
-                        duration = note_elem.find('m:duration', ns) if ns else note_elem.find('duration')
-                        if duration is not None and duration.text:
-                            try:
-                                note_data['duration'] = int(duration.text)
-                            except ValueError:
-                                note_data['duration'] = 0
-
-                        # Type
-                        type_elem = note_elem.find('m:type', ns) if ns else note_elem.find('type')
-                        if type_elem is not None:
-                            note_data['type'] = type_elem.text
-
-                        # Grace note
-                        grace = note_elem.find('m:grace', ns) if ns else note_elem.find('grace')
-                        if grace is not None:
-                            note_data['is_grace'] = True
-
-                        # Rest
-                        rest = note_elem.find('m:rest', ns) if ns else note_elem.find('rest')
-                        if rest is not None:
-                            note_data['is_rest'] = True
-
-                        # Pitch
-                        pitch = note_elem.find('m:pitch', ns) if ns else note_elem.find('pitch')
-                        if pitch is not None:
-                            step = pitch.find('m:step', ns) if ns else pitch.find('step')
-                            octave = pitch.find('m:octave', ns) if ns else pitch.find('octave')
-                            if step is not None and octave is not None:
-                                note_data['pitch'] = {'step': step.text, 'octave': octave.text}
-
-                        notes.append(note_data)
-
-                    measure_num = measure_elem.get('number', '0')
-                    try:
-                        measure_number = int(measure_num)
-                    except ValueError:
-                        measure_number = 0
-
-                    measures.append({
-                        'number': measure_number,
-                        'notes': notes
-                    })
-
-                parts.append({'measures': measures})
-
-            return {'parts': parts}
-        except Exception as e:
-            # Return minimal structure on error
-            return {'parts': [], 'error': str(e)}
-
-FIXTURE_DIR = Path(__file__).parent / "fixtures"
-# Use relative path from repo root instead of hardcoded absolute path
+FIXTURE_DIR = _repo_root / "tests" / "fixtures"
 RESULTS_DIR = _repo_root / "results"
 
 
 @dataclass
 class FixtureQualityResult:
-    """Result from checking a single fixture's structural quality."""
     fixture_name: str
     has_extracted: bool = False
     measure_count_match: bool = False
@@ -163,193 +34,76 @@ class FixtureQualityResult:
 
 
 class SmokeTest:
-    """Smoke test for extraction quality without API calls."""
-
     def __init__(self):
         self.console = Console()
 
     def discover_fixtures(self) -> list[Path]:
-        """Discover all MusicXML fixtures.
-
-        Returns:
-            List of fixture paths sorted by name.
-        """
         if not FIXTURE_DIR.exists():
             return []
         return sorted(FIXTURE_DIR.glob("*.musicxml"))
 
     def check_fixture(self, fixture_path: Path) -> FixtureQualityResult:
-        """Check structural quality of a single fixture.
+        result = FixtureQualityResult(fixture_name=fixture_path.stem)
+        extracted_path = RESULTS_DIR / result.fixture_name / "extracted.musicxml"
 
-        Args:
-            fixture_path: Path to ground truth MusicXML fixture.
-
-        Returns:
-            FixtureQualityResult with validation results.
-        """
-        fixture_name = fixture_path.stem
-        result = FixtureQualityResult(fixture_name=fixture_name)
-
-        # Check if extracted file exists
-        # First try direct path: results/fixture_name/extracted.musicxml
-        extracted_path = RESULTS_DIR / fixture_name / "extracted.musicxml"
-
-        # If not found, look for it in subdirectories (iteration results)
         if not extracted_path.exists():
-            # Look for the most recent extracted file in any subdirectory
-            candidate_paths = list(RESULTS_DIR.glob(f"{fixture_name}/**/extracted.musicxml"))
-            if candidate_paths:
-                # Sort by modification time and take the most recent
-                candidate_paths.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-                extracted_path = candidate_paths[0]
+            candidates = list(RESULTS_DIR.glob(f"{result.fixture_name}/**/extracted.musicxml"))
+            if candidates:
+                extracted_path = sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)[0]
             else:
-                result.has_extracted = False
                 result.error = "No extracted file found"
                 return result
 
         result.has_extracted = True
 
         try:
-            # Parse ground truth
             gt_data = _parse_musicxml(str(fixture_path))
-
-            # Parse extracted
             ex_data = _parse_musicxml(str(extracted_path))
 
-            # Check measure count
-            measure_match, gt_count, ex_count = self._check_measure_count(gt_data, ex_data)
-            result.measure_count_match = measure_match
-            result.gt_measure_count = gt_count
-            result.ex_measure_count = ex_count
-
-            # Check note durations
+            result.measure_count_match, result.gt_measure_count, result.ex_measure_count = self._check_measure_count(gt_data, ex_data)
             result.all_durations_one = self._check_note_durations(ex_data)
-
-            # Check measure stuffing
-            has_stuffing, max_notes, stuffed_measures = self._check_measure_stuffing(ex_data)
-            result.has_measure_stuffing = has_stuffing
-            result.max_notes_in_measure = max_notes
-            result.stuffing_measures = stuffed_measures
-
+            result.has_measure_stuffing, result.max_notes_in_measure, result.stuffing_measures = self._check_measure_stuffing(ex_data)
         except Exception as e:
             result.error = f"Parse error: {e}"
 
         return result
 
     def _check_measure_count(self, gt_data: dict, ex_data: dict) -> tuple[bool, int, int]:
-        """Check if extracted measure count matches ground truth.
-
-        Args:
-            gt_data: Parsed ground truth MusicXML.
-            ex_data: Parsed extracted MusicXML.
-
-        Returns:
-            (match: bool, gt_count: int, ex_count: int)
-        """
-        # Handle empty scores
         if not gt_data.get("parts") or not ex_data.get("parts"):
             return False, 0, 0
-
-        # Get measure counts for each part
-        gt_counts = [len(part.get("measures", [])) for part in gt_data["parts"]]
-        ex_counts = [len(part.get("measures", [])) for part in ex_data["parts"]]
-
-        # Use the maximum count for multi-part scores
-        gt_total = max(gt_counts) if gt_counts else 0
-        ex_total = max(ex_counts) if ex_counts else 0
-
+        gt_total = max((len(p.get("measures", [])) for p in gt_data["parts"]), default=0)
+        ex_total = max((len(p.get("measures", [])) for p in ex_data["parts"]), default=0)
         return gt_total == ex_total, gt_total, ex_total
 
     def _check_note_durations(self, ex_data: dict) -> bool:
-        """Check if all notes have duration=1 (indicates extraction bug).
-
-        This check uses duration_normalized to handle different divisions values.
-        A normalized duration of 1.0 means a quarter note. If ALL notes have
-        normalized duration of 1.0, it's likely a bug where the LLM set all
-        durations to the same value regardless of note type.
-
-        Args:
-            ex_data: Parsed extracted MusicXML.
-
-        Returns:
-            True if all durations are 1.0 (bad), False otherwise (good).
-        """
-        all_durations = []
-
-        for part in ex_data.get("parts", []):
-            for measure in part.get("measures", []):
-                for note in measure.get("notes", []):
-                    # Skip grace notes and rests
-                    if note.get("is_grace") or note.get("is_rest"):
-                        continue
-
-                    # Use normalized duration (quarter-note units)
-                    norm_dur = note.get("duration_normalized")
-                    if norm_dur is not None:
-                        all_durations.append(norm_dur)
-
-        # If no notes, can't determine - return False (not a bug)
-        if not all_durations:
-            return False
-
-        # Check if all durations are exactly 1.0
-        return all(d == 1.0 for d in all_durations)
+        durations = [
+            note.get("duration_normalized")
+            for part in ex_data.get("parts", [])
+            for measure in part.get("measures", [])
+            for note in measure.get("notes", [])
+            if not note.get("is_grace") and not note.get("is_rest") and note.get("duration_normalized") is not None
+        ]
+        return bool(durations) and all(d == 1.0 for d in durations)
 
     def _check_measure_stuffing(self, ex_data: dict) -> tuple[bool, int, list[int]]:
-        """Check if any measure has >20 notes (indicates stuffing bug).
-
-        Args:
-            ex_data: Parsed extracted MusicXML.
-
-        Returns:
-            (has_stuffing: bool, max_notes: int, stuffed_measures: list[int])
-        """
         max_notes = 0
-        stuffed_measures = []
-
+        stuffed = []
         for part in ex_data.get("parts", []):
             for measure in part.get("measures", []):
-                # Count non-grace, non-rest notes
-                note_count = sum(
-                    1 for note in measure.get("notes", [])
-                    if not note.get("is_grace") and not note.get("is_rest")
-                )
-
-                if note_count > max_notes:
-                    max_notes = note_count
-
+                note_count = sum(1 for n in measure.get("notes", []) if not n.get("is_grace") and not n.get("is_rest"))
+                max_notes = max(max_notes, note_count)
                 if note_count > 20:
-                    measure_num = measure.get("number", 0)
-                    if measure_num not in stuffed_measures:
-                        stuffed_measures.append(measure_num)
-
-        has_stuffing = len(stuffed_measures) > 0
-        return has_stuffing, max_notes, sorted(stuffed_measures)
+                    num = measure.get("number", 0)
+                    if num not in stuffed:
+                        stuffed.append(num)
+        return len(stuffed) > 0, max_notes, sorted(stuffed)
 
     def run_all(self) -> list[FixtureQualityResult]:
-        """Run smoke test on all fixtures.
-
-        Returns:
-            List of results for all fixtures.
-        """
-        fixtures = self.discover_fixtures()
-        results = []
-
-        for fixture_path in fixtures:
-            result = self.check_fixture(fixture_path)
-            results.append(result)
-
-        return results
+        return [self.check_fixture(p) for p in self.discover_fixtures()]
 
     def _print_report(self, results: list[FixtureQualityResult]) -> None:
-        """Print ASCII table report of results.
-
-        Args:
-            results: List of fixture quality results.
-        """
-        self.console.print("\n")
-        self.console.print("[bold]Extraction Quality Smoke Test Results[/bold]\n")
-
+        console = self.console
+        console.print("\n[bold]Extraction Quality Smoke Test Results[/bold]\n")
         table = Table(title="Per-Fixture Structural Quality")
         table.add_column("Fixture", style="bold")
         table.add_column("Extracted")
@@ -358,84 +112,42 @@ class SmokeTest:
         table.add_column("Stuffing", justify="center")
         table.add_column("Max Notes", justify="right")
         table.add_column("Status")
-
-        for result in sorted(results, key=lambda r: r.fixture_name):
-            # Extracted status
-            extracted = "[green]✓[/green]" if result.has_extracted else "[red]✗[/red]"
-
-            # Measure count
-            if result.has_extracted:
-                measures = f"{result.ex_measure_count}/{result.gt_measure_count}"
-                measure_ok = "[green]✓[/green]" if result.measure_count_match else "[red]✗[/red]"
-            else:
-                measures = "-"
-                measure_ok = "-"
-
-            # Duration check
-            if result.has_extracted and not result.error:
-                dur_status = "[red]✗[/red]" if result.all_durations_one else "[green]✓[/green]"
-            else:
-                dur_status = "-"
-
-            # Stuffing check
-            if result.has_extracted and not result.error:
-                stuff_status = "[red]✗[/red]" if result.has_measure_stuffing else "[green]✓[/green]"
-            else:
-                stuff_status = "-"
-
-            # Max notes
-            max_notes = str(result.max_notes_in_measure) if result.has_extracted else "-"
-
-            # Overall status
-            if result.error:
-                status = f"[yellow]SKIP[/yellow] ({result.error})"
-            elif not result.measure_count_match or result.all_durations_one or result.has_measure_stuffing:
+        for r in sorted(results, key=lambda x: x.fixture_name):
+            extracted = "[green]✓[/green]" if r.has_extracted else "[red]✗[/red]"
+            measures = f"{r.ex_measure_count}/{r.gt_measure_count}" if r.has_extracted else "-"
+            dur_status = "[red]✗[/red]" if r.has_extracted and not r.error and r.all_durations_one else "[green]✓[/green]" if r.has_extracted and not r.error else "-"
+            stuff_status = "[red]✗[/red]" if r.has_extracted and not r.error and r.has_measure_stuffing else "[green]✓[/green]" if r.has_extracted and not r.error else "-"
+            max_notes = str(r.max_notes_in_measure) if r.has_extracted else "-"
+            if r.error:
+                status = f"[yellow]SKIP[/yellow] ({r.error})"
+            elif not r.measure_count_match or r.all_durations_one or r.has_measure_stuffing:
                 status = "[red]FAIL[/red]"
             else:
                 status = "[green]PASS[/green]"
-
-            table.add_row(
-                result.fixture_name,
-                extracted,
-                measures,
-                dur_status,
-                stuff_status,
-                max_notes,
-                status
-            )
-
-        self.console.print(table)
-
-        # Summary
+            table.add_row(r.fixture_name, extracted, measures, dur_status, stuff_status, max_notes, status)
+        console.print(table)
         total = len(results)
         with_extracted = sum(1 for r in results if r.has_extracted)
         passed = sum(1 for r in results if r.has_extracted and not r.error and r.measure_count_match and not r.all_durations_one and not r.has_measure_stuffing)
         failed = with_extracted - passed
         skipped = total - with_extracted
-
-        self.console.print(f"\n  Total: {total}  With extracted: {with_extracted}  Passed: {passed}  Failed: {failed}  Skipped: {skipped}")
-
-        # Show fixtures with issues
+        console.print(f"\n  Total: {total}  With extracted: {with_extracted}  Passed: {passed}  Failed: {failed}  Skipped: {skipped}")
         issues = [r for r in results if r.has_extracted and not r.error and (not r.measure_count_match or r.all_durations_one or r.has_measure_stuffing)]
         if issues:
-            self.console.print("\n[bold]Fixtures with issues:[/bold]")
+            console.print("\n[bold]Fixtures with issues:[/bold]")
             for r in issues:
-                issue_list = []
+                parts = []
                 if not r.measure_count_match:
-                    issue_list.append(f"measure count mismatch ({r.ex_measure_count} vs {r.gt_measure_count})")
+                    parts.append(f"measure count mismatch ({r.ex_measure_count} vs {r.gt_measure_count})")
                 if r.all_durations_one:
-                    issue_list.append("all durations = 1.0")
+                    parts.append("all durations = 1.0")
                 if r.has_measure_stuffing:
-                    issue_list.append(f"stuffing in measures {r.stuffing_measures}")
-                self.console.print(f"  [yellow]{r.fixture_name}:[/yellow] {', '.join(issue_list)}")
-
+                    parts.append(f"stuffing in measures {r.stuffing_measures}")
+                console.print(f"  [yellow]{r.fixture_name}:[/yellow] {', '.join(parts)}")
 
 def main():
-    """CLI entry point."""
     smoke_test = SmokeTest()
-    results = smoke_test.run_all()
-    smoke_test._print_report(results)
-
+    smoke_test._print_report(smoke_test.run_all())
 
 if __name__ == "__main__":
     main()
